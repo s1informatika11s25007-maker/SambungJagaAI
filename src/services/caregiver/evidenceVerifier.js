@@ -2,7 +2,7 @@
  * SambungJaga AI — Evidence-Grade Verifier (P2 Innovation) & Spot Challenge Engine
  *
  * @module services/evidenceVerifier
- * @description Validates E0–E3 evidence submissions via Supabase Edge Function.
+ * @description Validates evidence submissions via Supabase Edge Function.
  */
 
 import { supabase } from '../../supabase/client/client';
@@ -34,9 +34,10 @@ export async function verifyEvidenceSubmission(requiredGrade, submittedGrade, pa
 
     if (!error && data) {
       return {
-        success: data.success ?? true,
-        reason: data.reason,
-        message: data.message || `Bukti ${submittedGrade} terverifikasi sah oleh Evidence-Grade Verifier (P2).`,
+        success: data.success === true,
+        verified: data.verified === true,
+        reason: data.reason || (data.success === true ? null : 'Verifier tidak menyetujui bukti.'),
+        message: data.message || (data.verified === true ? `Bukti ${submittedGrade} diverifikasi oleh layanan.` : 'Bukti dapat disimpan untuk tinjauan manusia, tetapi verifikasi otomatis belum terbukti.'),
         triggerSpotChallenge: data.triggerSpotChallenge,
         spotChallengeReason: data.spotChallengeReason
       };
@@ -48,29 +49,7 @@ export async function verifyEvidenceSubmission(requiredGrade, submittedGrade, pa
   // Fallback if Edge function is unreachable
   return {
     success: true,
-    message: `Bukti ${submittedGrade} terverifikasi sah oleh Evidence-Grade Verifier (P2).`
-  };
-}
-
-/**
- * Triggers a spot challenge audit for verified closures based on AI recommendation or random fallback.
- *
- * @param {Object} evidenceSubmission - Verified evidence submission object.
- * @param {boolean} [aiTriggered] - Whether AI specifically recommended a spot challenge.
- * @param {string} [aiReason] - Reason provided by AI.
- * @returns {Object|null} Spot challenge object or null if not triggered.
- */
-export function generateRandomSpotChallenge(evidenceSubmission, aiTriggered = false, aiReason = null) {
-  if (!evidenceSubmission) return null;
-
-  const shouldChallenge = aiTriggered || Math.random() < 0.35;
-  if (!shouldChallenge) return null;
-
-  return {
-    id: `spot-${Date.now()}`,
-    evidence_id: evidenceSubmission.id,
-    challenge_reason: aiReason || 'Audit Sampel Acak P2 Spot Challenge: Verifikasi fisik foto & waktu oleh Supervisor',
-    status: 'pending',
-    created_at: new Date().toISOString()
+    verified: false,
+    message: `Bukti ${submittedGrade} lolos pemeriksaan format lokal. Verifier server belum tersedia; bukti harus ditinjau supervisor dan tidak boleh menutup tugas otomatis.`
   };
 }

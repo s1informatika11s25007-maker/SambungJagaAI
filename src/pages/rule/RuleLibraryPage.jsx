@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { supabase } from '../../supabase/client/client';
+import { runRuleReplayAnalysis } from '../../services/rule/ruleReplayService';
 import {
   BookOpen,
   CheckCircle2,
@@ -14,55 +16,17 @@ import {
   AlertTriangle,
   X,
   History,
-  Sparkles,
   Layers,
   Lock
 } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 
-// PRESET CLINICAL SOP TEMPLATES (Kemenkes & WHO Standards)
+// Reusable administrative templates. These are workflow drafts, not clinical protocols.
 const SOP_TEMPLATES = [
-  {
-    code: 'RULE-HT-101',
-    title: 'SOP Pemantauan Hipertensi & Terapi Kompres',
-    expression: 'IF (Fact.systolic > 140 mmHg OR Fact.diastolic > 90 mmHg) THEN REQUIRE (Pengukuran Tensi Ulang & Istirahat 15 Menit) WITH GRADE (E1)',
-    priority: 'important',
-    evidence_grade: 'E1',
-    description: 'Pengukuran tensi wajib diulang untuk lansia dengan riwayat hipertensi kronis jika nilai sistolik melebihi 140 mmHg.'
-  },
-  {
-    code: 'RULE-DM-102',
-    codePrefix: 'RULE-DM',
-    title: 'SOP Diabetes Mellitus & Verifikasi Spuit Insulin Dual-Sign',
-    expression: 'IF (Resident.condition = "Diabetes" AND Fact.glucose > 150 mg/dL) THEN REQUIRE (Pemberian Dosis Insulin & Konfirmasi Perawat Ke-2) WITH GRADE (E2)',
-    priority: 'critical',
-    evidence_grade: 'E2',
-    description: 'Pasien Diabetes Mellitus di Wisma Melati dilarang diberi konsumsi makanan tinggi gula setelah pukul 19:00 WIB dan wajib verifikasi insulin dengan perawat kedua.'
-  },
-  {
-    code: 'RULE-FALL-103',
-    title: 'SOP Pencegahan Jatuh & Pendampingan Mobilisasi',
-    expression: 'IF (Resident.fall_risk = "high" AND Action = "mobilization") THEN REQUIRE (Pendampingan Minimal 1 Pengasuh) WITH GRADE (E1)',
-    priority: 'critical',
-    evidence_grade: 'E1',
-    description: 'Lansia dengan skor risiko jatuh tinggi wajib didampingi minimal 1 pengasuh saat berpindah dari tempat tidur ke kamar mandi.'
-  },
-  {
-    code: 'RULE-DEM-104',
-    title: 'SOP Demensia & Orientasi Realita Harian',
-    expression: 'IF (Resident.condition = "Dementia") THEN REQUIRE (Sesi Latihan Orientasi Waktu & Tempat 2x Sehari) WITH GRADE (E1)',
-    priority: 'routine',
-    evidence_grade: 'E1',
-    description: 'Latihan pengenalan waktu, lokasi, dan keluarga untuk lansia dengan demensia ringan-sedang.'
-  },
-  {
-    code: 'RULE-NUT-105',
-    title: 'SOP Pencegahan Dehidrasi & Asupan Cairan Lansia',
-    expression: 'IF (Fact.daily_fluid_ml < 1200) THEN REQUIRE (Pemberian 200ml Air Hangat / Sup Daging) WITH GRADE (E1)',
-    priority: 'important',
-    evidence_grade: 'E1',
-    description: 'Pemberian asupan cairan tambahan jika total minum harian lansia kurang dari 1200 ml.'
-  }
+  { code: 'FLOW-OBS-001', title: 'Dokumentasi observasi terjadwal', expression: 'WHEN (ObservationWindow = due) REQUIRE (RecordObservation) WITH GRADE (E1)', priority: 'routine', evidence_grade: 'E1', description: 'Kerangka pencatatan observasi sesuai rencana yang telah disahkan fasilitas. Supervisor wajib menyesuaikan prosedur lokal.' },
+  { code: 'FLOW-REVIEW-002', title: 'Tinjauan laporan oleh supervisor', expression: 'WHEN (Report.status = pending_review) REQUIRE (SupervisorReview) WITH GRADE (E1)', priority: 'important', evidence_grade: 'E1', description: 'Memastikan laporan yang membutuhkan perhatian diteruskan kepada petugas berwenang.' },
+  { code: 'FLOW-EVIDENCE-003', title: 'Pemeriksaan kelengkapan bukti', expression: 'WHEN (Evidence.submitted) REQUIRE (EvidenceGradeCheck) WITH GRADE (E2)', priority: 'important', evidence_grade: 'E1', description: 'Memeriksa kelengkapan bukti terhadap kriteria tugas. Status selesai tetap memerlukan verifikasi.' },
+  { code: 'FLOW-HANDOVER-004', title: 'Serah terima tugas antar-shift', expression: 'WHEN (ShiftChange) REQUIRE (OpenTasksReview AND ReceiverAcknowledgement) WITH GRADE (E1)', priority: 'routine', evidence_grade: 'E1', description: 'Membantu petugas merangkum tugas terbuka serta memastikan penerima mengetahui tindak lanjutnya.' }
 ];
 
 export default function RuleLibraryPage({
@@ -84,6 +48,9 @@ export default function RuleLibraryPage({
   const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [simulationResult, setSimulationResult] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isReplayRunning, setIsReplayRunning] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
 
   // Form state for Create / Edit
   const [formData, setFormData] = useState({
@@ -93,7 +60,7 @@ export default function RuleLibraryPage({
     priority: 'important',
     evidence_grade: 'E1',
     description: '',
-    approved_by: currentUser?.name || 'Ns. Ratna Sari, M.Kep (Supervisor)'
+    approved_by: null
   });
 
   // Filtered Rules list
@@ -117,7 +84,7 @@ export default function RuleLibraryPage({
       priority: 'important',
       evidence_grade: 'E1',
       description: '',
-      approved_by: currentUser?.name || 'Ns. Ratna Sari, M.Kep (Supervisor)'
+      approved_by: null
     });
     setShowCreateModal(true);
   };
@@ -132,7 +99,7 @@ export default function RuleLibraryPage({
       priority: template.priority,
       evidence_grade: template.evidence_grade,
       description: template.description,
-      approved_by: currentUser?.name || 'Ns. Ratna Sari, M.Kep (Supervisor)'
+      approved_by: null
     });
     setShowTemplateModal(false);
     setShowCreateModal(true);
@@ -148,91 +115,94 @@ export default function RuleLibraryPage({
       priority: rule.priority || 'important',
       evidence_grade: rule.evidence_grade || 'E1',
       description: rule.description || '',
-      approved_by: currentUser?.name || rule.approved_by || 'Ns. Ratna Sari, M.Kep (Supervisor)'
+      approved_by: null
     });
     setShowCreateModal(true);
   };
 
-  // Save Rule (Create or Bitemporal Version Edit)
-  const handleSaveRule = (e) => {
-    e.preventDefault();
-    if (!formData.title || !formData.expression) return;
-
-    if (editingRule) {
-      // Bitemporal Versioning Bump (e.g. v1.0.0 -> v1.1.0)
-      const currentVer = editingRule.version || 'v1.0.0';
-      const verParts = currentVer.replace('v', '').split('.');
-      const newMinor = parseInt(verParts[1] || '0', 10) + 1;
-      const newVersion = `v${verParts[0] || '1'}.${newMinor}.${verParts[2] || '0'}-clinical`;
-
-      const updatedRules = rules.map(r => {
-        if (r.id === editingRule.id) {
-          return {
-            ...r,
-            code: formData.code,
-            title: formData.title,
-            expression: formData.expression,
-            priority: formData.priority,
-            evidence_grade: formData.evidence_grade,
-            description: formData.description,
-            version: newVersion,
-            approved_by: formData.approved_by,
-            effective_from: new Date().toISOString().split('T')[0],
-            status: 'active'
-          };
+  // Persist every rule revision. Editing archives the previous row and creates a new version.
+  const handleSaveRule = async (event) => {
+    event.preventDefault();
+    if (!formData.title.trim() || !formData.expression.trim() || isSaving) return;
+    setIsSaving(true);
+    setActionMessage('');
+    let archivedPrevious = false;
+    try {
+      const now = new Date().toISOString();
+      let version = 'v1.0.0';
+      let supersedesId = null;
+      if (editingRule) {
+        if (!/^[0-9a-f-]{36}$/i.test(editingRule.id) || editingRule.status === 'derived') {
+          throw new Error('Aturan ini hanya ringkasan lama dan tidak dapat diedit. Buat aturan baru yang tersimpan di database.');
         }
-        return r;
-      });
-
-      if (setRules) setRules(updatedRules);
-    } else {
-      // Create New Rule
-      const newRule = {
-        id: `rule-${Date.now()}`,
-        code: formData.code || `RULE-${Date.now().toString().slice(-4)}`,
-        version: 'v1.0.0-clinical',
-        title: formData.title,
-        expression: formData.expression,
+        const parts = String(editingRule.version || 'v1.0.0').replace(/^v/, '').split('.');
+        version = `v${Number(parts[0] || 1)}.${Number(parts[1] || 0) + 1}.${Number(parts[2] || 0)}`;
+        supersedesId = editingRule.id;
+        const { error: archiveError } = await supabase.from('care_rules').update({ status: 'archived', updated_at: now }).eq('id', editingRule.id);
+        if (archiveError) throw archiveError;
+        archivedPrevious = true;
+      }
+      const payload = {
+        code: (formData.code || `RULE-${Date.now()}`).trim(),
+        version,
+        title: formData.title.trim(),
+        expression: formData.expression.trim(),
         priority: formData.priority,
         evidence_grade: formData.evidence_grade,
-        description: formData.description,
+        description: formData.description.trim(),
         status: 'active',
-        effective_from: new Date().toISOString().split('T')[0],
-        approved_by: formData.approved_by
+        effective_from: now,
+        approved_by: null,
+        created_by: currentUser?.id || null,
+        supersedes_id: supersedesId,
+        updated_at: now
       };
-
-      if (setRules) setRules([newRule, ...rules]);
-    }
-
-    setShowCreateModal(false);
-  };
-
-  // Toggle Archive / Soft Delete
-  const handleToggleArchive = (ruleId) => {
-    const updated = rules.map(r => {
-      if (r.id === ruleId) {
-        const nextStatus = r.status === 'archived' ? 'active' : 'archived';
-        return { ...r, status: nextStatus };
+      const { data, error } = await supabase.from('care_rules').insert(payload).select('*').single();
+      if (error) throw error;
+      if (setRules) setRules([data, ...rules.map((rule) => rule.id === supersedesId ? { ...rule, status: 'archived', updated_at: now } : rule)]);
+      setShowCreateModal(false);
+      setEditingRule(null);
+      setActionMessage(`Aturan ${data.code} ${data.version} berhasil disimpan.`);
+    } catch (error) {
+      if (archivedPrevious && editingRule?.id) {
+        await supabase.from('care_rules').update({ status: 'active' }).eq('id', editingRule.id);
       }
-      return r;
-    });
-    if (setRules) setRules(updated);
+      setActionMessage(error?.message || 'Aturan belum tersimpan. Periksa akses database dan coba lagi.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // Trigger P4 Retroactive Rule Replay Simulation
-  const handleRunSimulation = (rule) => {
-    const evaluatedFacts = (epistemicFacts || []).length || 24;
-    const estObligations = Math.floor(Math.random() * 4) + 3;
-    const safetyCoverage = 94 + Math.floor(Math.random() * 5);
+  // Archive changes the persisted database record; no local-only success state.
+  const handleToggleArchive = async (ruleId) => {
+    const target = rules.find((rule) => rule.id === ruleId);
+    if (!target || !/^[0-9a-f-]{36}$/i.test(ruleId)) {
+      setActionMessage('Ringkasan turunan tidak dapat diarsipkan.');
+      return;
+    }
+    const nextStatus = target.status === 'archived' ? 'active' : 'archived';
+    const { data, error } = await supabase.from('care_rules').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', ruleId).select('*').single();
+    if (error) {
+      setActionMessage(error.message || 'Perubahan status belum tersimpan.');
+      return;
+    }
+    if (setRules) setRules(rules.map((rule) => rule.id === ruleId ? data : rule));
+    setActionMessage(nextStatus === 'archived' ? 'Aturan berhasil diarsipkan.' : 'Aturan berhasil diaktifkan kembali.');
+  };
 
-    setSimulationResult({
-      rule,
-      evaluatedFacts,
-      estObligations,
-      safetyCoverage,
-      timestamp: new Date().toLocaleTimeString('id-ID')
-    });
-    setShowSimulationModal(true);
+  // Replay only reports what the configured engine can actually verify.
+  const handleRunSimulation = async (rule) => {
+    if (isReplayRunning) return;
+    setIsReplayRunning(true);
+    try {
+      const result = await runRuleReplayAnalysis(7, obligations, rule.version || 'v1.0.0');
+      setSimulationResult({ rule, result, timestamp: new Date().toLocaleTimeString('id-ID') });
+      setShowSimulationModal(true);
+    } catch (error) {
+      setActionMessage(error?.message || 'Layanan replay belum tersedia.');
+    } finally {
+      setIsReplayRunning(false);
+    }
   };
 
   return (
@@ -250,7 +220,7 @@ export default function RuleLibraryPage({
             </h2>
           </div>
           <p className="text-xs text-slate-600">
-            Kompilasi aturan perawatan klinis, SOP keselamatan panti jompo, dan verifikasi bukti otomatis.
+            Kelola alur administratif, standar bukti, dan revisi aturan yang tersimpan di database.
           </p>
         </div>
 
@@ -263,7 +233,7 @@ export default function RuleLibraryPage({
                 className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 transition-all duration-200 flex items-center space-x-1.5 shadow-xs cursor-pointer"
               >
                 <FileText className="w-4 h-4 text-sky-600" />
-                <span>Template SOP Medis</span>
+                <span>Template Alur Kerja</span>
               </button>
 
               <button
@@ -277,7 +247,7 @@ export default function RuleLibraryPage({
           ) : (
             <div className="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-medium border border-slate-200">
               <Lock className="w-3.5 h-3.5 text-slate-400" />
-              <span>Mode Baca (Akses Terbatas Staf)</span>
+              <span>Mode Baca (Akses Terbatas)</span>
             </div>
           )}
         </div>
@@ -326,14 +296,16 @@ export default function RuleLibraryPage({
         </div>
       </div>
 
+      {actionMessage && <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-700" role="status">{actionMessage}</div>}
+
       {/* RULES LIST */}
       <div className="space-y-4 w-full">
         {filteredRules.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-3">
             <Layers className="w-10 h-10 text-slate-300 mx-auto" />
-            <h3 className="text-sm font-bold text-slate-700">Tidak Ada Aturan Klinis Ditemukan</h3>
+            <h3 className="text-sm font-bold text-slate-700">Belum Ada Aturan Tersimpan</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              {searchQuery ? 'Coba ubah kata kunci pencarian Anda.' : 'Gunakan tombol "+ Tambah Aturan Baru" atau pilih "Preset SOP" untuk menambahkan aturan klinis.'}
+              {searchQuery ? 'Coba ubah kata kunci pencarian Anda.' : 'Buat aturan baru atau mulai dari template alur kerja. Data turunan tidak akan ditampilkan sebagai aturan resmi.'}
             </p>
           </div>
         ) : (
@@ -374,16 +346,16 @@ export default function RuleLibraryPage({
                       : 'bg-emerald-100 text-emerald-800 border-emerald-300'
                   }`}>
                     <CheckCircle2 className="w-3 h-3 mr-1" />
-                    {rule.status === 'archived' ? 'Diarsip (Soft Deleted)' : 'Human Approved'}
+                    {rule.status === 'archived' ? 'Diarsip' : 'Aktif'}
                   </span>
 
                   {/* Actions for Supervisor */}
-                  {isSupervisor && (
+                  {isSupervisor && rule.status !== 'derived' && (
                     <div className="flex items-center space-x-1 pl-2 border-l border-slate-200">
                       <button
                         onClick={() => handleRunSimulation(rule)}
                         className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
-                        title="Uji Replay Aturan (P4 Simulator)"
+                        title="Periksa replay dengan data yang tersedia"
                       >
                         <Play className="w-3.5 h-3.5" />
                       </button>
@@ -391,7 +363,7 @@ export default function RuleLibraryPage({
                       <button
                         onClick={() => handleOpenEdit(rule)}
                         className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
-                        title="Edit / Terbitkan Versi Baru"
+                        title="Buat revisi aturan baru"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
@@ -423,8 +395,8 @@ export default function RuleLibraryPage({
 
               {/* Metadata Footer */}
               <div className="flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-100 pt-2.5">
-                <span>Berlaku Mulai: <strong className="text-slate-700">{rule.effective_from || '1 Okt 2026'}</strong></span>
-                <span>Disetujui Oleh: <strong className="text-slate-800">{rule.approved_by || 'Ns. Ratna Sari, M.Kep'}</strong></span>
+                <span>Diperbarui: <strong className="text-slate-700">{rule.updated_at || rule.created_at || rule.effective_from ? new Date(rule.updated_at || rule.created_at || rule.effective_from).toLocaleDateString('id-ID') : 'Belum tercatat'}</strong></span>
+                <span>Versi: <strong className="text-slate-800">{rule.version || 'Belum diberi versi'}</strong></span>
               </div>
             </div>
           ))
@@ -439,7 +411,7 @@ export default function RuleLibraryPage({
               <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-5 h-5 text-sky-600" />
                 <h3 className="text-base font-bold text-slate-900">
-                  {editingRule ? `Edit Aturan (Bitemporal Versioning ${editingRule.code})` : 'Tambah Aturan Klinis Baru'}
+                  {editingRule ? `Edit Aturan (Bitemporal Versioning ${editingRule.code})` : 'Tambah Aturan Alur Kerja'}
                 </h3>
               </div>
               <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600">
@@ -475,11 +447,11 @@ export default function RuleLibraryPage({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Judul Aturan / SOP Klinis</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Judul Aturan / Alur Kerja</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: SOP Manajemen Hipertensi & Kompres"
+                  placeholder="Contoh: Dokumentasi observasi terjadwal"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 outline-none focus:border-sky-500"
@@ -487,11 +459,11 @@ export default function RuleLibraryPage({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Ekspresi Logika AI (IF ... THEN REQUIRE ...)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Ekspresi Aturan (IF ... THEN REQUIRE ...)</label>
                 <textarea
                   rows={2}
                   required
-                  placeholder='IF (Fact.systolic > 140) THEN REQUIRE (Tensi Ulang) WITH GRADE (E1)'
+                  placeholder='WHEN (ObservationWindow = due) REQUIRE (RecordObservation) WITH GRADE (E1)'
                   value={formData.expression}
                   onChange={(e) => setFormData({ ...formData, expression: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs font-mono text-sky-300 outline-none focus:ring-1 focus:ring-sky-500"
@@ -499,7 +471,7 @@ export default function RuleLibraryPage({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Deskripsi Penjelasan Klinis</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Deskripsi Aturan</label>
                 <textarea
                   rows={2}
                   placeholder="Penjelasan detail petunjuk operasional bagi pengasuh..."
@@ -522,16 +494,7 @@ export default function RuleLibraryPage({
                     <option value="critical">Critical (Kritis)</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Disetujui Oleh (Supervisor)</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.approved_by}
-                    onChange={(e) => setFormData({ ...formData, approved_by: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-sky-500"
-                  />
-                </div>
+<div className="flex items-center text-[11px] leading-relaxed text-slate-500">Penyimpanan membuat revisi aturan. Persetujuan prosedur tetap dilakukan melalui tata kelola fasilitas di luar editor ini.</div>
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
@@ -544,9 +507,10 @@ export default function RuleLibraryPage({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-md transition"
+                  disabled={isSaving}
+                  className="px-5 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-xl shadow-md transition"
                 >
-                  {editingRule ? 'Terbitkan Versi Baru (Bitemporal Bump)' : 'Simpan Aturan Baru'}
+                  {isSaving ? 'Menyimpan…' : editingRule ? 'Simpan revisi baru' : 'Simpan aturan'}
                 </button>
               </div>
             </form>
@@ -560,8 +524,8 @@ export default function RuleLibraryPage({
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 text-left border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-sky-600" />
-                <h3 className="text-base font-bold text-slate-900">Preset Template SOP Medis (Kemenkes & WHO)</h3>
+                <BookOpen className="w-5 h-5 text-sky-600" />
+                <h3 className="text-base font-bold text-slate-900">Template Alur Administratif</h3>
               </div>
               <button onClick={() => setShowTemplateModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -569,7 +533,7 @@ export default function RuleLibraryPage({
             </div>
 
             <p className="text-xs text-slate-600">
-              Pilih template standar siap pakai di bawah ini. Nilai logika dan parameter dapat Anda sesuaikan sebelum disimpan.
+              Template ini hanya kerangka alur administrasi, bukan instruksi medis. Sesuaikan dengan SOP fasilitas dan minta persetujuan supervisor sebelum digunakan.
             </p>
 
             <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
@@ -617,21 +581,18 @@ export default function RuleLibraryPage({
 
             <div className="grid grid-cols-2 gap-3 text-center">
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <p className="text-[11px] text-slate-500 font-bold">Laporan Dievaluasi</p>
-                <p className="text-lg font-black text-slate-900 mt-0.5">{simulationResult.evaluatedFacts} Records</p>
+                <p className="text-[11px] text-slate-500 font-bold">Catatan pada rentang 7 hari</p>
+                <p className="text-lg font-black text-slate-900 mt-0.5">{simulationResult.result.replayedRecords ?? '—'}</p>
               </div>
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <p className="text-[11px] text-slate-500 font-bold">Estimasi Obligasi Baru</p>
-                <p className="text-lg font-black text-sky-700 mt-0.5">+{simulationResult.estObligations} Kewajiban</p>
+                <p className="text-[11px] text-slate-500 font-bold">Konflik terverifikasi</p>
+                <p className="text-lg font-black text-slate-900 mt-0.5">{simulationResult.result.verified ? simulationResult.result.discrepanciesFound : 'Belum diverifikasi'}</p>
               </div>
             </div>
 
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center space-x-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <div>
-                <p className="font-bold">Aman Diterbitkan (Bebas Konflik Aturan)</p>
-                <p className="text-[11px] text-emerald-700">Skor Cakupan Keselamatan Lansia: <strong>{simulationResult.safetyCoverage}%</strong></p>
-              </div>
+            <div className={`p-3 rounded-xl text-xs border ${simulationResult.result.verified ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-950'}`}>
+              <p className="font-bold">{simulationResult.result.verified ? 'Hasil replay tervalidasi' : 'Replay penuh belum tersedia'}</p>
+              <p className="mt-1 text-[11px] leading-relaxed">{simulationResult.result.analysis}</p>
             </div>
 
             <button

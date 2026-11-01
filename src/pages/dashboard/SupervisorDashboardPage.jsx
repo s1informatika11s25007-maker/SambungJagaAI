@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
   CheckCircle2,
@@ -19,32 +19,12 @@ import CareDebtAlert from '../../components/dashboard/CareDebtAlert';
 import EvidenceUploadModal from '../../components/caregiver/EvidenceUploadModal';
 import Modal from '../../components/common/Modal';
 
-// QUICK CLINICAL PRESETS FOR 1-CLICK TASK CREATION
+// Administrative workflow templates only; clinical decisions remain with authorized staff.
 const CLINICAL_PRESETS = [
-  {
-    title: 'Pemberian Obat Hipertensi Amlodipine 5mg',
-    desc: 'Verifikasi konsumsi obat hipertensi rutin dengan bukti foto kemasan/spuit.',
-    priority: 'important',
-    grade: 'E1'
-  },
-  {
-    title: 'Injeksi Insulin Post-Prandial & Cek Gula Darah',
-    desc: 'Wajib verifikasi dosis insulin dengan konfirmasi perawat kedua (Dual-Sign E2).',
-    priority: 'critical',
-    grade: 'E2'
-  },
-  {
-    title: 'Pengukuran Tensi & Tanda-Tanda Vital',
-    desc: 'Pengukuran tekanan darah, denyut nadi, dan suhu tubuh harian lansia.',
-    priority: 'routine',
-    grade: 'E1'
-  },
-  {
-    title: 'Pendampingan Mobilisasi & Mencegah Jatuh',
-    desc: 'Pendampingan minimal 1 perawat saat berpindah dari tempat tidur.',
-    priority: 'critical',
-    grade: 'E1'
-  }
+  { title: 'Dokumentasikan observasi terjadwal', desc: 'Catat hasil observasi sesuai rencana perawatan yang telah disetujui fasilitas.', priority: 'routine', grade: 'E1' },
+  { title: 'Tinjau perubahan kondisi bersama supervisor', desc: 'Teruskan laporan kepada supervisor untuk penilaian dan tindak lanjut oleh petugas berwenang.', priority: 'important', grade: 'E1' },
+  { title: 'Verifikasi kelengkapan bukti tugas', desc: 'Periksa kecocokan bukti dengan kriteria tugas sebelum status dapat ditutup.', priority: 'important', grade: 'E2' },
+  { title: 'Dokumentasikan serah terima shift', desc: 'Rangkum tugas terbuka, penanggung jawab, dan catatan yang perlu diketahui petugas berikutnya.', priority: 'routine', grade: 'E1' }
 ];
 
 export default function SupervisorDashboardPage({
@@ -56,7 +36,9 @@ export default function SupervisorDashboardPage({
   onApproveAction,
   onCreateObligation,
   onOpenTraceModal,
-  setActiveTab
+  setActiveTab,
+  onRunAutopilot,
+  autopilotPlan = []
 }) {
   const [selectedObligationForEvidence, setSelectedObligationForEvidence] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -64,6 +46,7 @@ export default function SupervisorDashboardPage({
 
   // Notification feedback
   const [dispatchNotification, setDispatchNotification] = useState('');
+  const [isDispatching, setIsDispatching] = useState(false);
 
   // Form state
   const [newTitle, setNewTitle] = useState('');
@@ -72,6 +55,15 @@ export default function SupervisorDashboardPage({
   const [newCaregiverId, setNewCaregiverId] = useState(staff.filter(s => s.role === 'caregiver')[0]?.id || '');
   const [newPriority, setNewPriority] = useState('critical');
   const [newEvidenceGrade, setNewEvidenceGrade] = useState('E1');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+
+  useEffect(() => {
+    if (!newResidentId && residents[0]?.id) setNewResidentId(residents[0].id);
+    if (!newCaregiverId && staff.find((person) => person.role === 'caregiver' && person.shift_status === 'on_duty')?.id) {
+      setNewCaregiverId(staff.find((person) => person.role === 'caregiver' && person.shift_status === 'on_duty').id);
+    }
+  }, [residents, staff, newResidentId, newCaregiverId]);
 
   // Filter obligations based on Triage Selection
   const filteredObligations = obligations.filter(o => {
@@ -95,20 +87,24 @@ export default function SupervisorDashboardPage({
       statusColor: o.status === 'open' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300'
     }));
 
-  // 1-Click Auto Dispatcher & Realocation
-  const handleAutoDispatch = () => {
-    const onDutyCaregivers = staff.filter(s => s.role === 'caregiver');
-    const openTasks = obligations.filter(o => o.status === 'open');
-
-    if (openTasks.length === 0) {
-      setDispatchNotification('Seluruh kewajiban perawatan telah teralokasikan dengan aman.');
-      setTimeout(() => setDispatchNotification(''), 4000);
+  // Run the same database-backed Autopilot used by the global command center.
+  const handleAutoDispatch = async () => {
+    if (isDispatching) return;
+    if (typeof onRunAutopilot !== 'function') {
+      setDispatchNotification('Autopilot belum terhubung. Periksa konfigurasi workspace.');
       return;
     }
-
-    const assignedCount = Math.min(openTasks.length, onDutyCaregivers.length || 2);
-    setDispatchNotification(`Alokasi Otomatis Berhasil: ${assignedCount} tugas kritis dipetakan sesuai kualifikasi perawat on-duty.`);
-    setTimeout(() => setDispatchNotification(''), 5000);
+    setIsDispatching(true);
+    setDispatchNotification('Memeriksa rencana dan menjalankan tindakan yang diizinkan…');
+    try {
+      const result = await onRunAutopilot();
+      setDispatchNotification(result?.summary || 'Autopilot selesai. Periksa log eksekusi untuk detail.');
+    } catch (error) {
+      setDispatchNotification(error?.message || 'Autopilot gagal dijalankan. Tidak ada perubahan yang diklaim berhasil.');
+    } finally {
+      setIsDispatching(false);
+      window.setTimeout(() => setDispatchNotification(''), 6500);
+    }
   };
 
   // Apply Quick Clinical Preset
@@ -119,26 +115,29 @@ export default function SupervisorDashboardPage({
     setNewEvidenceGrade(preset.grade);
   };
 
-  const handleCreateSubmit = (e) => {
-    e.preventDefault();
-    if (!newTitle) return;
-
-    const res = residents.find(r => r.id === newResidentId);
-    const caregiver = staff.find(s => s.id === newCaregiverId);
-    onCreateObligation({
+  const handleCreateSubmit = async (event) => {
+    event.preventDefault();
+    if (!newTitle.trim() || !newResidentId || isCreating) return;
+    setIsCreating(true);
+    setCreateError('');
+    const resident = residents.find((item) => item.id === newResidentId);
+    const caregiver = staff.find((item) => item.id === newCaregiverId);
+    const outcome = await onCreateObligation({
       resident_id: newResidentId,
-      resident_name: res?.full_name || 'Penghuni',
-      title: newTitle,
+      resident_name: resident?.full_name || 'Penghuni',
+      title: newTitle.trim(),
       description: newDesc,
       priority: newPriority,
       required_evidence_grade: newEvidenceGrade,
-      assigned_caregiver_id: newCaregiverId,
-      assigned_caregiver_name: caregiver?.full_name || 'Caregiver'
+      assigned_caregiver_id: newCaregiverId || null,
+      assigned_caregiver_name: caregiver?.full_name || null
     }, currentUser?.full_name || 'Supervisor');
-
-    setNewTitle('');
-    setNewDesc('');
-    setIsCreateOpen(false);
+    setIsCreating(false);
+    if (!outcome?.success) {
+      setCreateError(outcome?.error || 'Tugas belum tersimpan.');
+      return;
+    }
+    setNewTitle(''); setNewDesc(''); setIsCreateOpen(false);
   };
 
   return (
@@ -203,11 +202,12 @@ export default function SupervisorDashboardPage({
         {/* 1-Click Auto Dispatch Button */}
         <button
           onClick={handleAutoDispatch}
-          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition-all duration-200 flex items-center space-x-1.5 cursor-pointer ml-auto"
-          title="Otomatis memetakan perawat sesuai kualifikasi medis"
+          disabled={isDispatching || !(autopilotPlan?.length)}
+          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm transition-all duration-200 flex items-center space-x-1.5 cursor-pointer ml-auto"
+          title="Jalankan tindakan operasional yang tersedia berdasarkan rencana Autopilot"
         >
           <UserCheck className="w-3.5 h-3.5" />
-          <span>Otomatiskan Alokasi Staf</span>
+          <span>{isDispatching ? 'Menjalankan…' : 'Jalankan Autopilot'}</span>
         </button>
       </div>
 
@@ -307,10 +307,11 @@ export default function SupervisorDashboardPage({
             <button
               type="button"
               onClick={handleAutoDispatch}
-              className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
+              disabled={isDispatching || !(autopilotPlan?.length)}
+              className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
             >
               <UserCheck className="w-3.5 h-3.5" />
-              <span>Jalankan Realokasi Otomatis</span>
+              <span>{isDispatching ? 'Menjalankan Autopilot…' : 'Jalankan Autopilot'}</span>
             </button>
           </div>
 

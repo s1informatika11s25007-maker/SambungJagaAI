@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, Mic, Plus, WifiOff, Clock, Sparkles, MessageSquare, Send, Camera, CheckCircle2 } from 'lucide-react';
+import { Smartphone, Mic, Plus, WifiOff, Clock, Activity, Loader2, MessageSquare, Send, Camera, CheckCircle2 } from 'lucide-react';
 import ObligationGraphCard from '../../components/dashboard/ObligationGraphCard';
 import CaregiverCaptureModal from '../../components/caregiver/CaregiverCaptureModal';
 import EvidenceUploadModal from '../../components/caregiver/EvidenceUploadModal';
@@ -100,7 +100,7 @@ export default function CaregiverMobilePage({
 
     const botResult = await processWhatsAppVoiceReport({
       messageText: inputTextToProcess,
-      senderName: currentUser?.name || currentUser?.full_name || 'Suster Dewi (WhatsApp)',
+      senderName: currentUser?.name || currentUser?.full_name || 'Pengasuh (WhatsApp)',
       context: { residents, activeObligations: obligations },
       onCaptureSubmit
     });
@@ -152,7 +152,7 @@ export default function CaregiverMobilePage({
         <div className="bg-gradient-to-r from-sky-50 to-indigo-50/50 p-4 rounded-2xl border border-sky-100 space-y-2.5">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-800 flex items-center">
-              <Sparkles className="w-4 h-4 mr-1.5 text-sky-600 animate-pulse" />
+              <Activity className="w-4 h-4 mr-1.5 text-sky-600" />
               One-Tap Quick Routine Chips (Zero-Friction)
             </h3>
             <span className="text-[10px] text-sky-700 font-medium bg-sky-100 px-2 py-0.5 rounded-full">
@@ -241,7 +241,7 @@ export default function CaregiverMobilePage({
                 disabled={isWaSending}
                 className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold p-2 rounded-xl transition"
               >
-                {isWaSending ? <Sparkles className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {isWaSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </button>
             </form>
           </div>

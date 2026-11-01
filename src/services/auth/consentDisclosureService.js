@@ -1,46 +1,13 @@
-/**
- * SambungJaga AI — Consent-Aware Disclosure Agent (Family Portal)
- *
- * @module services/consentDisclosureService
- * @description Filters clinical updates into PDP-compliant summaries via Supabase Edge Function with smart caching.
- */
-
-import { supabase } from '../../supabase/client/client';
-
-// In-Memory Cache for Family Portal PDP Summaries
-const familyPortalCache = new Map();
-
-export async function filterFamilyPortalData(resident, obligations) {
-  const cacheKey = `${resident?.id || 'res'}_${(obligations || []).map(o => `${o.id}:${o.status}`).join(',')}`;
-
-  if (familyPortalCache.has(cacheKey)) {
-    return familyPortalCache.get(cacheKey);
-  }
-
-  try {
-    const { data, error } = await supabase.functions.invoke('ai_consent_filter', {
-      body: { resident, obligations }
-    });
-
-    if (!error && data) {
-      familyPortalCache.set(cacheKey, data);
-      return data;
-    }
-  } catch (err) {
-    console.warn("AI Consent Filter Edge Function error", err);
-  }
-
-  const fallbackResult = {
-    residentStatusSummary: `${resident?.full_name || 'Pasien'} berada dalam kondisi stabil dan terawat.`,
-    filteredObligations: (obligations || []).map(o => ({
-      id: o.id,
-      title: o.title,
-      friendlyDescription: o.description,
-      status: o.status
+/** Family data is minimized in SQL views; this client adds friendly labels only. */
+export async function filterFamilyPortalData(_resident, obligations = []) {
+  return {
+    filteredObligations: obligations.map((item) => ({
+      id: item.id,
+      title: 'Pembaruan jadwal perawatan',
+      status: item.status,
+      updated_at: item.sys_created_at || item.updated_at || item.valid_from,
+      friendlyDescription: 'Ada pembaruan aktivitas yang dapat dilihat melalui akun keluarga.'
     })),
-    pdpComplianceNote: "Informasi medis tingkat lanjut telah disaring secara otomatis oleh Consent-Aware Disclosure Agent."
+    pdpComplianceNote: 'Portal hanya menerima ringkasan minimal yang dibagikan fasilitas melalui relasi akun keluarga. Informasi rinci tetap dikelola tim perawatan.'
   };
-
-  familyPortalCache.set(cacheKey, fallbackResult);
-  return fallbackResult;
 }

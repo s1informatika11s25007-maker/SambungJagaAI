@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, Settings, User, Camera, Upload, LogOut, CheckCircle2, Shield, Trash2, X, AlertTriangle, Info } from 'lucide-react';
+import { Bell, Settings, User, Camera, Upload, LogOut, Heart, Shield, Trash2, X, AlertTriangle } from 'lucide-react';
 import { formatDateID, formatTimeID } from '../../utils/common/formatters';
 import Modal from '../common/Modal';
+import { ROLE_LABELS } from '../../services/dashboard/staffService';
 
 export default function Header({
   activeRole,
@@ -11,7 +12,8 @@ export default function Header({
   onClearRoleNotifications,
   userAvatar,
   setUserAvatar,
-  onLogout
+  onLogout,
+  title
 }) {
   const [now, setNow] = useState(new Date());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -24,23 +26,22 @@ export default function Header({
     return () => clearInterval(timer);
   }, []);
 
-  const roleProfiles = {
-    supervisor: { name: 'Ns. Ratna Sari, M.Kep', roleTitle: 'Supervisor Klinis', email: 'supervisor.ratna@sambungjaga.id', defaultAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80' },
-    caregiver: { name: 'Suster Dewi Pertiwi, Amd.Kep', roleTitle: 'Pengasuh / Perawat', email: 'dewi.caregiver@sambungjaga.id', defaultAvatar: 'https://images.unsplash.com/photo-1594824813566-88855ce7890f?auto=format&fit=crop&w=120&q=80' },
-    family: { name: 'Rina Wijaya', roleTitle: 'Wali Ibu Hj. Aminah', email: 'keluarga.aminah@gmail.com', defaultAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=120&q=80' },
-    admin_hr: { name: 'Budi Santoso', roleTitle: 'Admin Panti / HR', email: 'admin.hr@sambungjaga.id', defaultAvatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=120&q=80' }
+  const initialsAvatar = (name) => {
+    const ini = (name || 'U').replace(/\(.*?\)/g, '').split(/[\s,.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || 'U';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="#2a6f64"/><text x="50%" y="54%" font-family="Inter,Arial" font-size="48" fill="#fff" text-anchor="middle" dominant-baseline="middle">${ini}</text></svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
   };
 
   const currentProfile = {
-    name: currentUser?.name || roleProfiles[activeRole]?.name || 'Pengguna SambungJaga',
-    roleTitle: currentUser?.roleTitle || roleProfiles[activeRole]?.roleTitle || activeRole,
-    email: currentUser?.email || roleProfiles[activeRole]?.email || 'user@sambungjaga.id',
-    defaultAvatar: currentUser?.avatar || roleProfiles[activeRole]?.defaultAvatar
+    name: currentUser?.name || currentUser?.full_name || 'Pengguna SambungJaga',
+    roleTitle: currentUser?.roleTitle || ROLE_LABELS[activeRole] || activeRole,
+    email: currentUser?.email || '',
+    defaultAvatar: currentUser?.avatar || initialsAvatar(currentUser?.name || currentUser?.full_name)
   };
 
   const displayAvatar = userAvatar || currentProfile.defaultAvatar;
 
-  // Handle local file upload (converts file to Data URL)
+  // Handle local file upload
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -77,7 +78,6 @@ export default function Header({
   const roleNotifs = notifications.filter(n => n.recipient_role === activeRole);
   const latestNotif = roleNotifs[0];
 
-  // Auto-hide popup banner after 7 seconds
   useEffect(() => {
     setShowOnceToast(true);
     const timer = setTimeout(() => {
@@ -88,7 +88,7 @@ export default function Header({
 
   return (
     <>
-      {/* Floating Toast Notification Banner - Positioned cleanly in bottom-right corner with high z-index (z-[100]) */}
+      {/* Toast Notification Popup */}
       {showOnceToast && latestNotif && (
         <div className="fixed bottom-6 right-6 z-[100] max-w-sm w-[calc(100vw-2rem)] sm:w-96 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-sky-500/50 backdrop-blur-md animate-fade-in flex items-start justify-between gap-3">
           <div className="flex items-start space-x-3 min-w-0 flex-1">
@@ -120,20 +120,19 @@ export default function Header({
         </div>
       )}
 
-      <header className="bg-white/95 border-b border-slate-200/90 px-6 py-3.5 sticky top-0 z-40 backdrop-blur-md shadow-xs w-full overflow-visible">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
-          {/* Left Search Bar */}
-          <div className="relative w-full sm:w-96">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 transform -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari penghuni, tugas, atau kewajiban..."
-              className="w-full bg-slate-100/80 border border-slate-200 rounded-2xl pl-10 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
-            />
+      <header className="bg-white/80 border-b border-slate-200/70 px-4 sm:px-8 py-3 sticky top-0 z-40 backdrop-blur-md w-full overflow-visible">
+        <div className="flex items-center justify-between gap-4 w-full">
+
+          {/* Left Context Header Brand Tag (Search Bar Removed as Requested) */}
+          <div className="flex items-center space-x-2.5">
+            <span className="text-sm font-medium text-slate-600 flex items-center space-x-1.5">
+              <Shield className="w-3.5 h-3.5 text-sky-600" />
+              <span>{title || 'SambungJaga'}</span>
+            </span>
           </div>
 
           {/* Right Info: Clock, Bell Notification, Settings, Avatar */}
-          <div className="flex items-center space-x-5 text-xs text-slate-600 font-medium w-full sm:w-auto justify-end">
+          <div className="flex items-center space-x-4 text-xs text-slate-600 font-medium">
             {/* Realtime Date & Clock */}
             <div className="text-right hidden sm:block">
               <div className="text-[11px] text-slate-500 font-bold">{formatDateID(now)}</div>
@@ -144,7 +143,7 @@ export default function Header({
             <div className="relative">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className="relative p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition focus:outline-none"
+                className="relative p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition focus:outline-none cursor-pointer"
                 title="Notifikasi Peran Sistem"
               >
                 <Bell className="w-4 h-4" />
@@ -166,7 +165,7 @@ export default function Header({
                       {roleNotifs.length > 0 && (
                         <button
                           onClick={() => onClearRoleNotifications && onClearRoleNotifications(activeRole)}
-                          className="text-[10px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-0.5"
+                          className="text-[10px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-0.5 cursor-pointer"
                           title="Hapus semua notifikasi peran ini"
                         >
                           <Trash2 className="w-3 h-3" /> Hapus Semua
@@ -174,7 +173,7 @@ export default function Header({
                       )}
                       <button
                         onClick={() => setIsNotificationOpen(false)}
-                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold ml-1"
+                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold ml-1 cursor-pointer"
                       >
                         Tutup
                       </button>
@@ -203,7 +202,7 @@ export default function Header({
                             </div>
                             <button
                               onClick={() => onDeleteNotification && onDeleteNotification(n.id)}
-                              className="text-slate-400 hover:text-rose-600 p-1 hover:bg-slate-200/60 rounded-lg transition shrink-0"
+                              className="text-slate-400 hover:text-rose-600 p-1 hover:bg-slate-200/60 rounded-lg transition shrink-0 cursor-pointer"
                               title="Hapus Notifikasi"
                             >
                               <X className="w-3.5 h-3.5" />
@@ -231,13 +230,13 @@ export default function Header({
             {/* Settings */}
             <button
               onClick={() => setIsProfileModalOpen(true)}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
               title="Pengaturan Profil"
             >
               <Settings className="w-4 h-4" />
             </button>
 
-            {/* User Avatar - Opens Profile Modal instead of logging out! */}
+            {/* User Avatar */}
             <div
               onClick={() => setIsProfileModalOpen(true)}
               className="relative group cursor-pointer"
@@ -308,7 +307,7 @@ export default function Header({
               />
               <button
                 type="submit"
-                className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition"
+                className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition cursor-pointer"
               >
                 Ganti
               </button>
@@ -341,7 +340,7 @@ export default function Header({
                 setIsProfileModalOpen(false);
                 onLogout();
               }}
-              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition"
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5 text-rose-600" />
               <span>Keluar Sesi</span>
@@ -350,7 +349,7 @@ export default function Header({
             <button
               type="button"
               onClick={() => setIsProfileModalOpen(false)}
-              className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-sky-600/20 transition"
+              className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-sky-600/20 transition cursor-pointer"
             >
               Selesai & Simpan
             </button>

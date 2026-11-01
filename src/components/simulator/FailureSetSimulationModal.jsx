@@ -1,81 +1,56 @@
 import React, { useState } from 'react';
-import { Play, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Play, ShieldCheck, RefreshCw, AlertTriangle, Info } from 'lucide-react';
 import { runFailureSetSimulation } from '../../services/simulator/failureSetSimulator';
 import Modal from '../common/Modal';
 
-export default function FailureSetSimulationModal({ isOpen, onClose, staff, obligations }) {
+export default function FailureSetSimulationModal({ isOpen, onClose, staff = [], obligations = [] }) {
   const [results, setResults] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
-  const handleRunSimulation = () => {
+  const handleRunSimulation = async () => {
+    if (isRunning) return;
     setIsRunning(true);
-    setTimeout(() => {
-      const res = runFailureSetSimulation(staff, obligations);
-      setResults(res);
+    setError('');
+    try {
+      setResults(await runFailureSetSimulation(staff, obligations));
+    } catch (err) {
+      setResults(null);
+      setError(err?.message || 'Analisis tidak dapat dijalankan.');
+    } finally {
       setIsRunning(false);
-    }, 1200);
+    }
   };
 
+  const isInsufficient = results?.status === 'insufficient_data';
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="P4 · Failure-Set Search Simulator">
+    <Modal isOpen={isOpen} onClose={onClose} title="Analisis Cakupan Kompetensi">
       <div className="space-y-4 text-slate-900">
-        <p className="text-xs text-slate-600 font-medium">
-          Simulasi asinkron ini mencari kombinasi kegagalan pengasuh terkecil (minimal failure combination) yang dapat menyebabkan kewajiban kritis terelakkan/terlantarkan.
+        <p className="text-xs leading-relaxed text-slate-600">
+          Uji skenario absensi satu atau dua petugas terhadap tugas prioritas tinggi berdasarkan kompetensi yang tercatat. Ini alat bantu penjadwalan, bukan penilaian klinis atau jaminan keselamatan.
         </p>
-
-        <button
-          onClick={handleRunSimulation}
-          disabled={isRunning}
-          className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs py-2.5 rounded-xl font-bold transition flex items-center justify-center space-x-2 shadow-md shadow-amber-600/20"
-        >
-          {isRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-          <span>{isRunning ? 'Memproses Simulasi Failure-Set...' : 'Jalankan Simulasi Pencarian Kegagalan'}</span>
+        <button onClick={handleRunSimulation} disabled={isRunning} className="w-full rounded-xl bg-amber-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-amber-700 disabled:opacity-50">
+          <span className="inline-flex items-center justify-center gap-2">{isRunning ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}{isRunning ? 'Menganalisis data aktif…' : 'Jalankan analisis skenario'}</span>
         </button>
-
+        {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{error}</p>}
         {results && (
-          <div className="space-y-3 pt-2">
-            <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-300 text-xs">
-              <span className="text-amber-900 font-bold block text-[10px]">Rekomendasi Simulator P4:</span>
-              <p className="font-semibold text-slate-800 mt-0.5">{results.recommendation}</p>
+          <div className="space-y-3 border-t border-slate-100 pt-4">
+            <div className={`rounded-xl border p-3 text-xs ${isInsufficient ? 'border-amber-200 bg-amber-50 text-amber-900' : results.minimalFailureSets.length ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+              <div className="mb-1 flex items-center gap-2 font-bold">{isInsufficient ? <Info size={15} /> : results.minimalFailureSets.length ? <AlertTriangle size={15} /> : <ShieldCheck size={15} />}{isInsufficient ? 'Data belum cukup' : results.minimalFailureSets.length ? 'Skenario perlu ditinjau' : 'Tidak ada celah pada model yang diuji'}</div>
+              <p>{results.recommendation}</p>
+              <p className="mt-2 text-[10px] opacity-80">Sumber: {results.source === 'server_analysis' ? 'Analisis server terverifikasi' : 'Analisis aturan lokal'} · Skenario diuji: {results.scenariosTested ?? '—'} · Tugas tanpa data kompetensi: {results.unassessableObligations ?? 0}</p>
             </div>
-
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-900">Skenario Kerentanan Terdeteksi:</h4>
-              {results.minimalFailureSets.length === 0 ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-900 font-bold flex items-center space-x-2">
-                  <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
-                  <span>Aman. Tidak ditemukan kombinasi 1 atau 2 pengasuh absen yang menelantarkan kewajiban kritis.</span>
-                </div>
-              ) : (
-                results.minimalFailureSets.map((set, idx) => (
-                  <div key={idx} className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-xs space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-rose-900 flex items-center">
-                        <AlertTriangle className="w-3.5 h-3.5 mr-1 text-rose-600" /> Ukuran Kegagalan: {set.size} Pengasuh Absen
-                      </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-bold">
-                        {set.riskLevel}
-                      </span>
-                    </div>
-
-                    <p className="text-[11px] text-slate-700">
-                      Pengasuh Absen: <span className="font-bold text-slate-900">{set.absentStaff.join(', ')}</span>
-                    </p>
-
-                    <div className="text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-200">
-                      Tugas Kritis Terancam:
-                      <ul className="list-disc list-inside mt-1 text-slate-800 font-semibold">
-                        {set.abandonedObligations.map((ob, obIdx) => (
-                          <li key={obIdx}>{ob.title} ({ob.resident_name})</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            {results.minimalFailureSets.map((set, index) => (
+              <article key={`${set.size}-${index}`} className="rounded-xl border border-rose-200 bg-white p-3 text-xs">
+                <div className="flex items-center justify-between gap-2"><strong>Skenario {index + 1} · {set.size} petugas tidak tersedia</strong><span className="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-800">{set.riskLevel}</span></div>
+                <p className="mt-1 text-slate-600">Petugas: <strong className="text-slate-800">{set.absentStaff.join(', ')}</strong></p>
+                <p className="mt-2 font-semibold text-slate-700">Tugas yang kehilangan cakupan kompetensi:</p>
+                <ul className="mt-1 list-inside list-disc text-slate-600">{set.abandonedObligations.map((item) => <li key={item.id}>{item.title} ({item.resident_name || 'Penghuni'})</li>)}</ul>
+              </article>
+            ))}
+            {results.limitations?.length > 0 && <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[10px] text-slate-600"><strong>Batas analisis</strong><ul className="mt-1 list-inside list-disc">{results.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div>}
           </div>
         )}
       </div>

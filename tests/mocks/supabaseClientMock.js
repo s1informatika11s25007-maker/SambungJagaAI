@@ -9,6 +9,7 @@ const mockChain = {
 
 export const supabase = {
   from: () => mockChain,
+  rpc: () => Promise.resolve({ data: [], error: null }),
   auth: {
     getUser: () => Promise.resolve({ data: { user: null }, error: null }),
   },

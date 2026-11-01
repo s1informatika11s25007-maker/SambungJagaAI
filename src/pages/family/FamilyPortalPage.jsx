@@ -1,102 +1,95 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Lock, Heart, Eye, Sparkles } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Users, LockKeyhole, Heart, Eye, ChevronDown, ClipboardList, CalendarClock } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import { filterFamilyPortalData } from '../../services/auth/consentDisclosureService';
 
-export default function FamilyPortalPage({ residents, obligations }) {
-  const familyResident = (residents && residents.length > 0) ? residents[0] : null;
-  const rawObs = familyResident ? (obligations || []).filter(o => o.resident_id === familyResident.id) : [];
-
-  const [aiFilteredData, setAiFilteredData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+export default function FamilyPortalPage({ residents = [], obligations = [] }) {
+  const [selectedResidentId, setSelectedResidentId] = useState('');
+  const [disclosureData, setDisclosureData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    async function loadFilteredData() {
-      if (!familyResident) {
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      const res = await filterFamilyPortalData(familyResident, rawObs);
-      setAiFilteredData(res);
+    if (!residents.length) {
+      setSelectedResidentId('');
+      setDisclosureData(null);
       setIsLoading(false);
+      return;
+    }
+    if (!residents.some((resident) => resident.id === selectedResidentId)) {
+      setSelectedResidentId(residents[0].id);
+    }
+  }, [residents, selectedResidentId]);
+
+  const familyResident = residents.find((resident) => resident.id === selectedResidentId) || null;
+  const residentObligations = useMemo(
+    () => familyResident ? obligations.filter((obligation) => obligation.resident_id === familyResident.id) : [],
+    [familyResident?.id, obligations]
+  );
+
+  useEffect(() => {
+    let active = true;
+    async function loadFilteredData() {
+      if (!familyResident) return;
+      setIsLoading(true);
+      try {
+        const result = await filterFamilyPortalData(familyResident, residentObligations);
+        if (active) setDisclosureData(result);
+      } finally {
+        if (active) setIsLoading(false);
+      }
     }
     loadFilteredData();
-  }, [familyResident?.id, rawObs.length]);
+    return () => { active = false; };
+  }, [familyResident?.id, residentObligations.length, residentObligations.map((item) => `${item.id}:${item.status}`).join('|')]);
+
+  if (!residents.length) {
+    return (
+      <section className="space-y-5">
+        <header className="sj-page-intro">
+          <div><span className="sj-eyebrow">RUANG KELUARGA</span><h1>Portal Keluarga</h1><p>Informasi perawatan yang dibagikan fasilitas akan ditampilkan di sini.</p></div>
+          <Badge variant="info"><LockKeyhole size={13} /> Akses terbatas</Badge>
+        </header>
+        <div className="sj-empty-state">
+          <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><LockKeyhole size={22} /></span>
+          <h3>Belum ada penghuni yang terhubung</h3>
+          <p>Akun keluarga belum memiliki relasi akses ke profil penghuni. Minta administrator fasilitas menghubungkan akun Anda sebelum informasi perawatan ditampilkan.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const visibleObligations = disclosureData?.filteredObligations || [];
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-200 flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-            <Users className="w-5 h-5 text-sky-600" />
-            <span>Family Portal (Consent-Aware Disclosure Agent)</span>
-          </h2>
-          <p className="text-xs text-slate-600">
-            Akses Informasi Ringkasan untuk Keluarga Pasien (Sesuai UU Perlindungan Data Pribadi / PDP)
-          </p>
+    <section className="space-y-6">
+      <header className="sj-page-intro">
+        <div><span className="sj-eyebrow">RUANG KELUARGA</span><h1>Portal Keluarga</h1><p>Lihat ringkasan yang memang diizinkan oleh fasilitas. Informasi rinci tetap berada pada tim perawatan.</p></div>
+        <Badge variant="info"><LockKeyhole size={13} /> Ringkasan terkontrol</Badge>
+      </header>
+
+      {residents.length > 1 && <label className="sj-field max-w-sm">
+        <span>Pilih anggota keluarga</span>
+        <span className="sj-input-wrap"><Users size={17} /><select value={selectedResidentId} onChange={(event) => setSelectedResidentId(event.target.value)} aria-label="Pilih penghuni" className="w-full min-w-0 bg-transparent py-3 text-xs text-slate-800 outline-none">{residents.map((resident) => <option key={resident.id} value={resident.id}>{resident.full_name} · Kamar {resident.room_number}</option>)}</select><ChevronDown size={15} /></span>
+      </label>}
+
+      {familyResident && <article className="sj-work-card flex flex-col sm:flex-row sm:items-center gap-4 p-5">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-rose-50 text-rose-600"><Heart size={25} /></div>
+        <div className="min-w-0 flex-1"><span className="sj-eyebrow">PROFIL TERHUBUNG</span><h2 className="mt-1 text-lg font-extrabold text-slate-800">{familyResident.full_name}</h2><p className="mt-1 text-xs text-slate-500">Kamar {familyResident.room_number || 'Belum dicatat'}</p></div>
+        <span className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-50 px-3 py-2 text-[10px] font-bold text-emerald-800"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Terhubung ke akun Anda</span>
+      </article>}
+
+      <div className="flex items-center justify-between gap-3"><div><span className="sj-eyebrow">PEMBARUAN</span><h2 className="mt-1 text-base font-extrabold text-slate-800">Aktivitas perawatan yang dibagikan</h2></div><span className="text-[10px] font-semibold text-slate-400">{residentObligations.length} catatan terkait</span></div>
+
+      {isLoading ? <div className="sj-empty-state"><CalendarClock className="animate-pulse" size={25} /><h3>Menyiapkan ringkasan</h3><p>Data yang diizinkan sedang disiapkan.</p></div> : visibleObligations.length ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {visibleObligations.map((obligation) => <article key={obligation.id} className="sj-work-card p-4">
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="text-sm font-bold text-slate-800">{obligation.title || 'Aktivitas perawatan diperbarui'}</h3><p className="mt-2 text-xs leading-relaxed text-slate-500">{obligation.friendlyDescription || 'Ada pembaruan aktivitas yang dibagikan fasilitas.'}</p></div><Badge variant={obligation.status === 'verified_closed' ? 'success' : 'info'}>{obligation.status === 'verified_closed' ? 'Selesai' : obligation.status === 'escalated' ? 'Ditinjau tim' : 'Berjalan'}</Badge></div>
+            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-[10px] text-slate-400"><span className="inline-flex items-center gap-1.5"><ClipboardList size={13} /> Pembaruan yang dibagikan</span><span>{(obligation.updated_at || obligation.sys_created_at || obligation.valid_from) ? new Date(obligation.updated_at || obligation.sys_created_at || obligation.valid_from).toLocaleDateString('id-ID') : ''}</span></div>
+          </article>)}
         </div>
-        <Badge variant="kernel" className="font-mono text-xs flex items-center space-x-1">
-          <Sparkles className="w-3 h-3 mr-1 text-purple-600" />
-          <span>SambungJaga Care Agent</span>
-        </Badge>
-      </div>
+      ) : <div className="sj-empty-state"><Eye size={25} /><h3>Belum ada pembaruan yang dibagikan</h3><p>Aktivitas akan muncul setelah fasilitas mencatat dan mengizinkan informasi untuk dibagikan kepada keluarga.</p></div>}
 
-      {/* Profile Card */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xl shadow-slate-200/50 flex items-center space-x-4 w-full">
-        <div className="p-3.5 bg-rose-50 text-rose-600 rounded-2xl border border-rose-200">
-          <Heart className="w-7 h-7" />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-slate-900">{familyResident?.full_name || 'Tidak ada data lansia'}</h3>
-          <p className="text-xs text-slate-500 font-medium">{familyResident?.room_number || '-'}</p>
-          <div className="flex items-center space-x-2 mt-2">
-            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold">
-              {aiFilteredData?.residentStatusSummary || 'Kondisi Terhubung ke Database'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filtered Update Feed */}
-      <div className="space-y-4 w-full">
-        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center">
-          <Eye className="w-4 h-4 mr-1.5 text-sky-600" />
-          Kabar & Ringkasan Perawatan Hari Ini (Filtered Output PDP)
-        </h3>
-
-        {isLoading ? (
-          <div className="p-4 text-xs text-slate-500 bg-slate-50 rounded-2xl border border-slate-200 animate-pulse">
-            Memfilter data medis menggunakan SambungJaga Care Agent...
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-            {(aiFilteredData?.filteredObligations || rawObs).map(ob => (
-              <div key={ob.id} className="bg-white border border-slate-200 rounded-2xl p-4 text-xs space-y-2 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900">{ob.title}</span>
-                  <Badge variant={ob.status === 'verified_closed' ? 'success' : 'info'}>
-                    {ob.status === 'verified_closed' ? 'Terverifikasi Selesai' : 'Dalam Terapi'}
-                  </Badge>
-                </div>
-                <p className="text-slate-600 text-[11px]">{ob.friendlyDescription || ob.description}</p>
-                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100">
-                  <span>Penanggung Jawab: {ob.assigned_caregiver_name || 'Tim Perawat'}</span>
-                  <span className="font-mono font-bold text-sky-700">PDP Consent Filtered</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Privacy Guarantee Note */}
-      <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start space-x-2.5 shadow-sm w-full">
-        <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-        <p className="leading-relaxed">
-          {aiFilteredData?.pdpComplianceNote || 'Informasi rinci medis tingkat lanjut disembunyikan secara otomatis oleh Consent-Aware Disclosure Agent sesuai batasan izin hak akses yang dikonfigurasi oleh wali pasien.'}
-        </p>
-      </div>
-    </div>
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-amber-900"><LockKeyhole size={17} className="mt-0.5 shrink-0" /><p className="text-[10px] leading-relaxed">{disclosureData?.pdpComplianceNote || 'Portal ini hanya menampilkan informasi yang lolos pembatasan akses. Portal bukan pengganti komunikasi langsung dengan tenaga perawatan.'}</p></div>
+    </section>
   );
 }

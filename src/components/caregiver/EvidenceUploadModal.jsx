@@ -1,42 +1,70 @@
-import React, { useState } from 'react';
-import { Camera, QrCode, UserCheck, ShieldCheck, AlertCircle, X, Sparkles, Check } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Camera, ShieldCheck, AlertCircle, X, Loader2, Check, AlertTriangle, LockKeyhole } from 'lucide-react';
 import { EVIDENCE_GRADE, EVIDENCE_GRADE_LABELS } from '../../types/core/architecture';
+import { processRealCameraEvidence } from '../../services/ai/realVisionOcrService';
 
 export default function EvidenceUploadModal({ isOpen, onClose, obligation, onSubmitEvidence, currentUser }) {
   const [selectedGrade, setSelectedGrade] = useState(obligation?.required_evidence_grade || EVIDENCE_GRADE.E1);
-  const [photoSim, setPhotoSim] = useState(true);
   const [isOcrScanning, setIsOcrScanning] = useState(false);
   const [ocrVerifiedData, setOcrVerifiedData] = useState(null);
-  const [secondPersonName, setSecondPersonName] = useState('Perawat Budi Santoso');
+  const [capturedHash, setCapturedHash] = useState(null);
+  const [manualReadout, setManualReadout] = useState('');
   const [feedback, setFeedback] = useState(null);
+
+  const fileInputRef = useRef(null);
 
   if (!isOpen || !obligation) return null;
 
-  const handleMultimodalOcrScan = () => {
+  const handleProcessImage = async (imageInput) => {
     setIsOcrScanning(true);
     setFeedback(null);
 
-    setTimeout(() => {
-      setIsOcrScanning(false);
-      setOcrVerifiedData({
-        vitalReadout: '120/80 mmHg (Normal) / Suhu 36.8°C',
-        facelessCropStatus: 'Faceless Privacy Crop PDP: OK (Wajah Diblur/Dipotong Otonom)',
-        ocrConfidence: '99.4%'
-      });
+    try {
+      const processed = await processRealCameraEvidence(imageInput, obligation?.title);
+      setCapturedHash(processed.photoHash);
+      setOcrVerifiedData(processed.ocrData);
+
+      if (processed.ocrData && processed.ocrData.vitalReadout) {
+        setManualReadout(processed.ocrData.vitalReadout);
+      } else {
+        setManualReadout('');
+      }
+
       setSelectedGrade(EVIDENCE_GRADE.E1);
-      setPhotoSim(true);
-    }, 1200);
+    } catch (err) {
+      console.error("OCR Scan Error:", err);
+      setFeedback({ type: 'error', text: `Gagal memproses foto kamera: ${err.message}` });
+    } finally {
+      setIsOcrScanning(false);
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleProcessImage(file);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFeedback(null);
 
+    const finalReadout = manualReadout.trim() || ocrVerifiedData?.vitalReadout || null;
+    if ([EVIDENCE_GRADE.E2, EVIDENCE_GRADE.E3].includes(selectedGrade)) {
+      setFeedback({ type: 'error', text: 'Verifikasi ganda dan sensor belum terhubung ke identitas/perangkat yang dapat diverifikasi. Jangan mengklaim bukti E2/E3; minta supervisor meninjau kebutuhan bukti.' });
+      return;
+    }
+    if (selectedGrade === EVIDENCE_GRADE.E1 && !capturedHash) {
+      setFeedback({ type: 'error', text: 'Unggah foto terlebih dahulu agar sidik-jari SHA-256 dihitung dari artefak yang benar-benar dipilih.' });
+      return;
+    }
+
     const payload = {
-      photo_hash: photoSim ? `sha256-faceless-vision-crop-${Date.now()}` : null,
-      qr_code: `QR-BED-LOCATION-${obligation.resident_id}`,
-      ocr_readout: ocrVerifiedData?.vitalReadout || null,
-      second_person_name: selectedGrade === EVIDENCE_GRADE.E2 ? secondPersonName : null,
+      photo_hash: capturedHash,
+      qr_code: null,
+      ocr_readout: finalReadout,
+      evidence_source: capturedHash ? 'uploaded_image_sha256' : 'caregiver_claim',
       timestamp: new Date().toISOString()
     };
 
@@ -70,7 +98,7 @@ export default function EvidenceUploadModal({ isOpen, onClose, obligation, onSub
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center space-x-2">
             <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            <h3 className="font-bold text-slate-900 text-sm">P2 Evidence-Grade Verifier</h3>
+            <h3 className="font-bold text-slate-900 text-sm">Unggah bukti tugas</h3>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-mono font-bold border border-amber-300">
@@ -91,32 +119,73 @@ export default function EvidenceUploadModal({ isOpen, onClose, obligation, onSub
           <p className="text-[11px] text-slate-500 font-medium mt-0.5">{obligation.resident_name}</p>
         </div>
 
-        {/* Multimodal Camera OCR Scan Button */}
+        {/* Hidden File Input for Real Photo Upload */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+
+        {/* Real Camera OCR Trigger Button */}
         <button
           type="button"
-          onClick={handleMultimodalOcrScan}
+          onClick={() => fileInputRef.current?.click()}
           disabled={isOcrScanning}
           className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white p-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-md shadow-emerald-500/20 transition"
         >
           {isOcrScanning ? (
             <>
-              <Sparkles className="w-4 h-4 animate-spin text-emerald-100" />
-              <span>Scanning Vision OCR Kamera & Auto Faceless Crop...</span>
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-100" />
+              <span>Memindai Foto Kamera (Real Tesseract OCR)...</span>
             </>
           ) : (
             <>
               <Camera className="w-4 h-4" />
-              <span>📸 Scan Multimodal Vision AI Kamera (Auto-Verify E1)</span>
+              <span>Ambil / unggah foto bukti</span>
             </>
           )}
         </button>
 
         {ocrVerifiedData && (
-          <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 text-xs text-emerald-900 space-y-1">
-            <p className="font-bold flex items-center text-emerald-700">
-              <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Hasil Vision AI OCR Kamera (&lt; 2 detik):
-            </p>
-            <p className="font-mono text-[11px] font-semibold">{ocrVerifiedData.vitalReadout}</p>
+          <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 text-xs text-emerald-900 space-y-2 animate-slide-up">
+            <div className="flex items-center justify-between font-bold text-emerald-800">
+              <span className="flex items-center">
+                <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Hasil OCR Kamera Rill:
+              </span>
+              <span className="text-[10px] bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded font-mono font-bold">
+                OCR: {ocrVerifiedData.confidence ?? 'tidak tersedia'} (indikatif)
+              </span>
+            </div>
+
+            {ocrVerifiedData.hasValidReadout ? (
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-800 mb-0.5">Angka Hasil Pembacaan:</label>
+                <input
+                  type="text"
+                  value={manualReadout}
+                  onChange={(e) => setManualReadout(e.target.value)}
+                  className="w-full text-xs font-mono font-bold text-slate-900 bg-white p-2 rounded-lg border border-emerald-300 outline-none"
+                />
+              </div>
+            ) : (
+              <div className="bg-amber-100/80 border border-amber-300 p-2 rounded-lg space-y-1">
+                <div className="flex items-center text-amber-900 font-bold text-[11px]">
+                  <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-700 shrink-0" />
+                  <span>Tidak terdeteksi angka jelas pada foto. Ketik angka rill:</span>
+                </div>
+                <input
+                  type="text"
+                  value={manualReadout}
+                  onChange={(e) => setManualReadout(e.target.value)}
+                  placeholder="Contoh: 120/80 mmHg atau Suhu 36.8°C"
+                  className="w-full text-xs font-mono font-bold text-slate-900 bg-white p-2 rounded-lg border border-amber-400 outline-none"
+                />
+              </div>
+            )}
+
             <p className="text-[10px] text-emerald-700 font-medium">{ocrVerifiedData.facelessCropStatus}</p>
           </div>
         )}
@@ -128,19 +197,21 @@ export default function EvidenceUploadModal({ isOpen, onClose, obligation, onSub
               {Object.keys(EVIDENCE_GRADE).map((gradeKey) => {
                 const info = EVIDENCE_GRADE_LABELS[gradeKey];
                 const isSelected = selectedGrade === gradeKey;
+                const isUnsupported = gradeKey === EVIDENCE_GRADE.E2 || gradeKey === EVIDENCE_GRADE.E3;
                 return (
                   <button
                     key={gradeKey}
                     type="button"
-                    onClick={() => setSelectedGrade(gradeKey)}
+                    onClick={() => !isUnsupported && setSelectedGrade(gradeKey)}
+                    disabled={isUnsupported}
                     className={`p-2.5 rounded-xl border text-left transition ${
                       isSelected
                         ? 'bg-sky-50 border-sky-400 text-sky-900 shadow-sm'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        : isUnsupported ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     <div className="text-xs font-bold">{info.name}</div>
-                    <div className="text-[10px] opacity-80 mt-0.5">{info.desc}</div>
+                    <div className="text-[10px] opacity-80 mt-0.5">{isUnsupported ? 'Belum didukung: perlu verifikasi identitas/perangkat' : info.desc}</div>
                   </button>
                 );
               })}
@@ -151,33 +222,11 @@ export default function EvidenceUploadModal({ isOpen, onClose, obligation, onSub
             <div className="space-y-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-800 font-semibold flex items-center">
-                  <Camera className="w-3.5 h-3.5 mr-1.5 text-sky-600" /> Faceless Privacy Auto-Crop (UU PDP)
+                  <Camera className="w-3.5 h-3.5 mr-1.5 text-sky-600" /> Sidik-jari foto (SHA-256)
                 </span>
-                <input
-                  type="checkbox"
-                  checked={photoSim}
-                  onChange={(e) => setPhotoSim(e.target.checked)}
-                  className="rounded bg-white border-slate-300 text-sky-600"
-                />
+                <span className="text-[10px] font-bold text-slate-500">{capturedHash ? 'Tersedia' : 'Belum ada foto'}</span>
               </div>
-
-              <div className="flex items-center text-xs text-slate-600 font-medium">
-                <QrCode className="w-3.5 h-3.5 mr-1.5 text-emerald-600" /> Auto QR-Code Scan Lokasi Pasien: OK
-              </div>
-
-              {selectedGrade === EVIDENCE_GRADE.E2 && (
-                <div className="pt-2 border-t border-slate-200">
-                  <label className="block text-[11px] text-slate-600 font-semibold mb-1 flex items-center">
-                    <UserCheck className="w-3.5 h-3.5 mr-1 text-purple-600" /> Nama Verifikator Orang Kedua (Dual Signoff)
-                  </label>
-                  <input
-                    type="text"
-                    value={secondPersonName}
-                    onChange={(e) => setSecondPersonName(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-medium"
-                  />
-                </div>
-              )}
+              <p className="flex items-start gap-2 text-[10px] leading-relaxed text-slate-500"><LockKeyhole className="mt-0.5 h-3.5 w-3.5 shrink-0" />QR lokasi dan tanda tangan orang kedua belum terhubung ke verifier perangkat/akun. Aplikasi tidak akan mengarang identitas atau QR untuk menaikkan tingkat bukti.</p>
             </div>
           )}
 
@@ -211,7 +260,7 @@ export default function EvidenceUploadModal({ isOpen, onClose, obligation, onSub
               type="submit"
               className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2.5 rounded-xl font-bold shadow-md shadow-emerald-600/20"
             >
-              Verifikasi & Tutup Misi
+              Kirim untuk ditinjau
             </button>
           </div>
         </form>

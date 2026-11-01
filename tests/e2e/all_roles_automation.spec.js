@@ -49,7 +49,7 @@ test.describe('SambungJaga AI — Full Automated E2E Test Suite for All Account 
     await page.getByRole('button', { name: 'Masuk' }).click();
 
     // Verify Workspace Header Banner
-    await expect(page.getByText(/Selamat pagi/i)).toBeVisible();
+    await expect(page.getByText(/Selamat (pagi|siang|sore|malam)/i)).toBeVisible();
 
     // Verify Priority Tasks & Care Debt Alert
     await expect(page.getByText('Tugas Prioritas')).toBeVisible();

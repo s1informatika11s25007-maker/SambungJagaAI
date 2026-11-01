@@ -7,6 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
+        sky: {
+          50: '#f3f8f7', 100: '#e0eeeb', 200: '#c2dcd6', 300: '#96c3ba',
+          400: '#5fa296', 500: '#3a8579', 600: '#2a6f64', 700: '#245a52',
+          800: '#204a44', 900: '#1c3d38', 950: '#0e2421',
+        },
         brand: {
           50: '#f0f9ff',
           100: '#e0f2fe',
@@ -36,7 +41,7 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['Inter var', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
       }
     },
   },

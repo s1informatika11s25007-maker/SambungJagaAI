@@ -178,4 +178,72 @@ describe('SambungJaga AI Core Domain Services Unit Tests', () => {
     });
   });
 
+  describe('8. Real Vision OCR & PDP Privacy Engine', () => {
+    it('should accurately parse blood pressure readings from OCR text', async () => {
+      const { parseVitalReadoutFromOcrText } = await import('../../src/services/ai/realVisionOcrService');
+      const res = parseVitalReadoutFromOcrText('Layar Tensi Digital: SYS 125 / DIA 82 mmHg Pulse 70');
+      expect(res.hasValidReadout).toBe(true);
+      expect(res.vitalReadout).toBe('125/82 mmHg (Normal)');
+    });
+
+    it('should accurately parse temperature readings from OCR text', async () => {
+      const { parseVitalReadoutFromOcrText } = await import('../../src/services/ai/realVisionOcrService');
+      const res = parseVitalReadoutFromOcrText('Digital Thermometer readout: 38.4 C');
+      expect(res.hasValidReadout).toBe(true);
+      expect(res.vitalReadout).toBe('Suhu 38.4°C (Tinggi (Demam))');
+    });
+
+    it('should return null readout gracefully when no numbers are found in photo', async () => {
+      const { parseVitalReadoutFromOcrText } = await import('../../src/services/ai/realVisionOcrService');
+      const res = parseVitalReadoutFromOcrText('Random background photo with no medical reading');
+      expect(res.hasValidReadout).toBe(false);
+      expect(res.vitalReadout).toBeNull();
+    });
+  });
+
+});
+
+import { planAutopilot, executeAutopilot } from '../../src/services/automation/autopilot';
+
+describe('Autopilot', () => {
+  it('plans only pending steps and never throws when a step fails', async () => {
+    const plan = planAutopilot({
+      activeRole: 'supervisor',
+      currentUser: { id: 's' },
+      obligations: [{ id: 'o1', title: 'Insulin A', status: 'open', priority: 'critical' }],
+      notifications: [{ recipient_role: 'supervisor', title: 'Permintaan Persetujuan Human Review (A3)', message: 'Insulin A', is_read: false }],
+      offlineQueue: [1]
+    });
+    expect(plan.map((s) => s.id)).toEqual(['approve_a3', 'sync_offline', 'tidy_notifications']);
+    const out = await executeAutopilot(plan, {
+      approveAuthorityAction: async () => ({ success: true }),
+      syncOfflineLedger: async () => { throw new Error('x'); },
+      markRoleNotificationsAsShown: () => {},
+      activeRole: 'supervisor'
+    });
+    expect(out.results.map((r) => r.ok)).toEqual([true, false, true]);
+  });
+});
+
+describe('Autopilot — escalation & assignment from real data', () => {
+  it('escalates overdue and balances unassigned work across on-duty caregivers', () => {
+    const past = new Date(Date.now() - 3600e3).toISOString();
+    const fut = new Date(Date.now() + 3600e3).toISOString();
+    const plan = planAutopilot({
+      activeRole: 'supervisor',
+      obligations: [
+        { id: 'a', title: 'T1', status: 'open', valid_until: past },
+        { id: 'b', title: 'T2', status: 'open', valid_until: fut },
+        { id: 'c', title: 'T3', status: 'open', valid_until: fut, assigned_caregiver_id: 's1' }
+      ],
+      staff: [
+        { id: 's1', role: 'caregiver', shift_status: 'on_duty' },
+        { id: 's2', role: 'caregiver', shift_status: 'on_duty' },
+        { id: 's3', role: 'caregiver', shift_status: 'off_duty' }
+      ]
+    });
+    expect(plan.map((s) => s.id)).toEqual(['escalate_overdue', 'assign_unassigned']);
+    expect(plan[1].targets.every((t) => t.staffId === 's2' || t.staffId === 's1')).toBe(true);
+    expect(plan[1].targets.some((t) => t.staffId === 's3')).toBe(false);
+  });
 });

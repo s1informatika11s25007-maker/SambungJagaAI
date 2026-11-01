@@ -1,328 +1,113 @@
 import React, { useState } from 'react';
 import {
-  ShieldCheck,
-  Bot,
-  Heart,
-  ArrowRight,
-  Shield,
-  Cpu,
-  Users,
-  FileCheck,
-  BarChart3,
-  MessageSquare,
-  Zap,
-  Quote
+  ArrowRight, ArrowUpRight, CheckCircle2, ClipboardList, Heart,
+  LockKeyhole, MessageSquareText, ShieldCheck, Users,
+  Workflow, Activity, FileCheck2, TimerReset, ScanEye
 } from 'lucide-react';
 import ArchitectureModal from '../../components/common/ArchitectureModal';
 
-export default function LandingPage({ onGoToLogin, onGoToRegister, onDirectDemoLogin }) {
+const capabilities = [
+  { icon: MessageSquareText, number: '01', title: 'Tangkap laporan', text: 'Catatan teks, suara, dan bukti masuk melalui alur yang sama sehingga konteks tidak tercecer.' },
+  { icon: Workflow, number: '02', title: 'Ubah menjadi tugas', text: 'Superagent membantu menyusun tindak lanjut yang dapat ditinjau dan dikonfirmasi oleh petugas.' },
+  { icon: ShieldCheck, number: '03', title: 'Verifikasi penyelesaian', text: 'Bukti, status, dan pihak yang bertanggung jawab tersimpan untuk ditelusuri kembali.' },
+  { icon: Activity, number: '04', title: 'Pantau kesinambungan', text: 'Supervisor mendapat ringkasan prioritas, serah terima shift, dan aktivitas yang perlu diperhatikan.' }
+];
+
+const roleCards = [
+  { icon: Users, title: 'Supervisor', text: 'Prioritaskan pekerjaan, tinjau eskalasi, dan pantau koordinasi tim.' },
+  { icon: Heart, title: 'Pengasuh', text: 'Lihat tugas aktif, kirim laporan, dan lampirkan bukti dari lapangan.' },
+  { icon: LockKeyhole, title: 'Keluarga', text: 'Akses ringkasan perawatan yang telah diizinkan oleh fasilitas.' }
+];
+
+export default function LandingPage({ onGoToLogin, onGoToRegister }) {
   const [isArchitectureModalOpen, setIsArchitectureModalOpen] = useState(false);
-  const mainFeatures = [
-    {
-      icon: ShieldCheck,
-      color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-      title: 'Manajemen Kewajiban',
-      desc: 'Lacak semua kewajiban perawatan secara real-time dengan sistem bitemporal dan aturan dinamis.'
-    },
-    {
-      icon: Shield,
-      color: 'bg-sky-50 text-sky-600 border-sky-200',
-      title: 'Verifikasi Bukti',
-      desc: 'Pastikan setiap tugas memiliki bukti yang valid dan dapat diaudit dengan mudah.'
-    },
-    {
-      icon: Cpu,
-      color: 'bg-purple-50 text-purple-600 border-purple-200',
-      title: 'Analisis AI Agent',
-      desc: 'Deteksi risiko, temukan kesenjangan kompetensi, dan berikan rekomendasi berbasis data.'
-    },
-    {
-      icon: Users,
-      color: 'bg-blue-50 text-blue-600 border-blue-200',
-      title: 'Rekrutmen & Kompetensi',
-      desc: 'Cari dan verifikasi tenaga kerja yang sesuai dengan kebutuhan perawatan.'
-    },
-    {
-      icon: BarChart3,
-      color: 'bg-amber-50 text-amber-600 border-amber-200',
-      title: 'Dashboard & Laporan',
-      desc: 'Pantau progres, kelola tim, dan dapatkan laporan lengkap secara otomatis.'
-    },
-    {
-      icon: Heart,
-      color: 'bg-indigo-50 text-indigo-600 border-indigo-200',
-      title: 'Portal Keluarga',
-      desc: 'Berbagi informasi yang aman dan transparan dengan keluarga (opsional).'
-    }
-  ];
-
-  const steps = [
-    {
-      num: '1',
-      icon: MessageSquare,
-      title: 'Input & Observasi',
-      desc: 'Laporan teks/suara dari pengasuh atau sistem.'
-    },
-    {
-      num: '2',
-      icon: Cpu,
-      title: 'Analisis AI',
-      desc: 'AI mengekstrak fakta, menentukan status, dan membuat kewajiban.'
-    },
-    {
-      num: '3',
-      icon: Zap,
-      title: 'Eksekusi & Verifikasi',
-      desc: 'Sistem menugaskan, memeriksa bukti, dan memvalidasi penyelesaian.'
-    },
-    {
-      num: '4',
-      icon: FileCheck,
-      title: 'Report & Insight',
-      desc: 'Laporan otomatis dan rekomendasi untuk pengambilan keputusan.'
-    }
-  ];
-
-  const testimonials = [
-    {
-      quote: "Sejak pakai SambungJaga, semua tugas lebih jelas dan tidak ada lagi yang terlewat. Tim kami jadi lebih fokus pada perawatan.",
-      name: "Siti Rahma",
-      role: "Supervisor Panti",
-      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&q=80"
-    },
-    {
-      quote: "Fitur AI-nya sangat membantu, terutama untuk mencatat observasi dan mencari tenaga yang sesuai.",
-      name: "Budi Santoso",
-      role: "Pengasuh / Perawat",
-      avatar: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=120&q=80"
-    },
-    {
-      quote: "Kami merasa lebih tenang karena bisa melihat perkembangan orang tua kami secara transparan.",
-      name: "Rina Wijaya",
-      role: "Anak dari Lansia",
-      avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=120&q=80"
-    }
-  ];
 
   return (
-    <div className="space-y-16 py-4 w-full">
-      {/* OPEN FRAMELESS HERO SECTION BLENDING DIRECTLY INTO PAGE BACKGROUND */}
-      <section className="relative py-2 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-
-          {/* Left Hero Text Column (5 Cols) */}
-          <div className="lg:col-span-5 space-y-6 text-left">
-            <h1 className="text-3xl sm:text-5xl font-black text-slate-900 leading-tight tracking-tight">
-              Teknologi AI untuk Perawatan Lansia yang Lebih{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600">
-                Terhubung dan Terpercaya
-              </span>
-            </h1>
-
-            <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
-              SambungJaga membantu fasilitas perawatan lansia mengelola kewajiban, memverifikasi tugas, dan memastikan setiap tindakan tercatat dengan aman, transparan, dan dapat diaudit.
-            </p>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-              <button
-                onClick={onGoToLogin}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-sky-600/30 transition flex items-center justify-center space-x-2"
-              >
-                <span>Mulai Sekarang</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => setIsArchitectureModalOpen(true)}
-                className="bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm px-6 py-3.5 rounded-xl border border-slate-300 shadow-xs transition text-center"
-              >
-                Pelajari Lebih Lanjut
-              </button>
-            </div>
-
-            {/* 4 Feature Pills Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-slate-200/80 text-xs">
-              <div className="flex items-center space-x-2 bg-white/90 p-2.5 rounded-xl border border-slate-200 shadow-xs">
-                <Bot className="w-4 h-4 text-emerald-600 shrink-0" />
-                <div>
-                  <div className="font-bold text-slate-900 text-[11px]">AI Orchestration</div>
-                  <div className="text-[10px] text-slate-500">AI Kernel</div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 bg-white/90 p-2.5 rounded-xl border border-slate-200 shadow-xs">
-                <ShieldCheck className="w-4 h-4 text-sky-600 shrink-0" />
-                <div>
-                  <div className="font-bold text-slate-900 text-[11px]">Keamanan Data</div>
-                  <div className="text-[10px] text-slate-500">UU PDP</div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 bg-white/90 p-2.5 rounded-xl border border-slate-200 shadow-xs">
-                <Users className="w-4 h-4 text-purple-600 shrink-0" />
-                <div>
-                  <div className="font-bold text-slate-900 text-[11px]">Multi-Peran</div>
-                  <div className="text-[10px] text-slate-500">Pengasuh & Wali</div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 bg-white/90 p-2.5 rounded-xl border border-slate-200 shadow-xs">
-                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                <div>
-                  <div className="font-bold text-slate-900 text-[11px]">Terpercaya</div>
-                  <div className="text-[10px] text-slate-500">Superagent</div>
-                </div>
-              </div>
-            </div>
+    <div className="sj-landing">
+      <section className="sj-hero">
+        <div className="sj-hero-glow sj-hero-glow-a" />
+        <div className="sj-hero-glow sj-hero-glow-b" />
+        <div className="sj-hero-copy animate-fade-up">
+          <span className="sj-eyebrow sj-eyebrow-light"><span className="sj-live-dot" /> CARE CONTINUITY, CONNECTED</span>
+          <h1>Perawatan yang baik dimulai dari <em>koordinasi yang terjaga.</em></h1>
+          <p className="sj-hero-description">SambungJaga membantu tim perawatan lansia menghubungkan laporan, kewajiban, bukti, dan serah terima shift dalam satu ruang kerja yang mudah dipahami.</p>
+          <div className="sj-hero-actions">
+            <button type="button" onClick={onGoToLogin} className="sj-hero-primary">Masuk ke platform <ArrowRight size={18} /></button>
+            <button type="button" onClick={() => setIsArchitectureModalOpen(true)} className="sj-hero-secondary">Jelajahi cara kerja <ArrowUpRight size={17} /></button>
           </div>
-
-          {/* Right Hero Column: Orangtua.jpeg Photo + Left AI Speech Bubble & Right 3D Robot Mascot with "Kondisi Lansia: Stabil" Speech Bubble */}
-        <div className="lg:col-span-7 relative flex justify-center w-full">
-          {/* Subtle masking container to make the image blend seamlessly */}
-          <div className="relative overflow-visible w-full mask-image-gradient">
-            <img
-              src="/Orangtua.jpeg"
-              onError={(e) => { e.target.src = '/elderly-care.svg'; }}
-              alt="Perawatan Lansia SambungJaga AI"
-              className="w-full h-[450px] sm:h-[500px] lg:h-[560px] object-cover transform hover:scale-[1.01] transition-transform duration-500 rounded-3xl"
-              style={{
-                maskImage: 'radial-gradient(ellipse at center, black 65%, transparent 100%)',
-                WebkitMaskImage: 'radial-gradient(ellipse at center, black 65%, transparent 100%)'
-              }}
-            />
-
-              {/* OVERLAY BADGE LEFT: AI Agent Chat Bubble pointing to elderly woman on left */}
-              <div className="absolute top-5 left-4 sm:left-6 bg-white/95 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl shadow-xl border border-slate-200/80 max-w-[230px] sm:max-w-[260px] text-left animate-float">
-                <div className="flex items-center space-x-1.5 text-xs font-bold text-sky-600 mb-1">
-                  <Heart className="w-4 h-4 text-sky-600 fill-sky-600" />
-                  <span>AI Agent</span>
-                </div>
-                <p className="text-[11px] text-slate-700 font-semibold leading-tight">
-                  Tugas harian telah diselesaikan dan bukti telah diverifikasi.
-                </p>
-              </div>
-
-              {/* OVERLAY GROUP RIGHT: Speech Bubble "Kondisi Lansia: Stabil" positioned TOP-LEFT above 3D Robot Mascot */}
-              <div className="absolute -bottom-2 right-0 sm:-bottom-4 sm:-right-4 lg:-bottom-6 lg:-right-6 z-20 flex flex-col items-center pointer-events-none">
-
-                {/* Speech Bubble Above-Left of Robot */}
-                <div className="bg-white/95 backdrop-blur-md px-3.5 py-2.5 rounded-2xl shadow-xl border border-slate-200/90 flex items-center space-x-2.5 -mb-6 sm:-mb-8 lg:-mb-10 animate-float relative shadow-sky-900/10 z-10">
-                  <div className="p-1.5 rounded-full bg-rose-100 text-rose-600 shrink-0">
-                    <Heart className="w-3.5 h-3.5 fill-rose-600" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-bold block leading-none">Kondisi Lansia</span>
-                    <span className="text-xs font-black text-emerald-600">Stabil</span>
-                  </div>
-                  {/* Speech Bubble Arrow pointing down to Robot Mascot */}
-                  <div className="absolute -bottom-1.5 right-1/2 translate-x-1/2 w-3 h-3 bg-white border-b border-r border-slate-200/90 transform rotate-45"></div>
-                </div>
-
-                {/* 3D Robot Mascot Image */}
-                <img
-                  src="/Friendly Futuristic Robot Mascot.png"
-                  alt="Friendly Futuristic Robot Mascot"
-                  className="w-44 h-44 sm:w-56 sm:h-56 lg:w-[280px] lg:h-[280px] object-contain filter drop-shadow-[0_15px_20px_rgba(0,0,0,0.25)]"
-                />
-              </div>
-
-            </div>
+          <div className="sj-hero-trust-row">
+            <span><ShieldCheck size={15} /> Akses berbasis peran</span>
+            <span><FileCheck2 size={15} /> Bukti yang dapat ditelusuri</span>
+            <span><LockKeyhole size={15} /> Alur dengan persetujuan manusia</span>
           </div>
+        </div>
 
+        <div className="sj-hero-visual animate-fade-up animate-delay-2">
+          <div className="sj-visual-grid" />
+          <div className="sj-hero-photo-frame">
+            <img src="/Orangtua.jpeg" onError={(event) => { event.currentTarget.src = '/elderly-care.svg'; }} alt="Ilustrasi suasana perawatan lansia" />
+            <div className="sj-photo-wash" />
+          </div>
+          <div className="sj-floating-card sj-floating-card-top">
+            <span className="sj-floating-icon sj-floating-icon-blue"><ScanEye size={18} /></span>
+            <span><strong>Care insight</strong><small>Ringkasan aktivitas tersusun</small></span>
+            <span className="sj-mini-check"><CheckCircle2 size={16} /></span>
+          </div>
+          <div className="sj-floating-card sj-floating-card-bottom">
+            <span className="sj-floating-icon sj-floating-icon-green"><ClipboardList size={18} /></span>
+            <span><strong>Shift handover</strong><small>Catatan untuk tim berikutnya</small></span>
+            <span className="sj-card-pulse" />
+          </div>
+          <div className="sj-visual-brand-orb"><img src="/Friendly Futuristic Robot Mascot.png" alt="Maskot SambungJaga" /></div>
+          <div className="sj-visual-caption"><span className="sj-caption-line" /> Satu alur. Informasi tetap tersambung.</div>
         </div>
       </section>
 
-      {/* FITUR UTAMA SECTION */}
-      <section id="fitur" className="space-y-6">
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Fitur Utama</h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            Solusi lengkap untuk manajemen perawatan <span className="text-sky-600 font-bold">lansia</span> yang lebih cerdas
-          </p>
-        </div>
+      <section className="sj-proof-strip" aria-label="Prinsip platform">
+        <div><span className="sj-proof-icon"><Activity size={18} /></span><span><strong>Asisten Pintar Pendamping</strong><small>Meringkas dan menyusun tindak lanjut</small></span></div>
+        <div><span className="sj-proof-icon"><ShieldCheck size={18} /></span><span><strong>Keputusan tetap terjaga</strong><small>Aksi klinis membutuhkan otorisasi</small></span></div>
+        <div><span className="sj-proof-icon"><TimerReset size={18} /></span><span><strong>Jejak lintas shift</strong><small>Status dan bukti lebih mudah dicari</small></span></div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mainFeatures.map((feat, idx) => {
-            const Icon = feat.icon;
-            return (
-              <div
-                key={idx}
-                className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-md shadow-slate-200/40 hover:shadow-xl hover:border-sky-300 transition space-y-3"
-              >
-                <div className={`w-10 h-10 rounded-2xl ${feat.color} border flex items-center justify-center font-bold`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900">{feat.title}</h3>
-                <p className="text-xs text-slate-600 leading-relaxed font-normal">{feat.desc}</p>
-              </div>
-            );
+      <section className="sj-section sj-capabilities" id="cara-kerja">
+        <div className="sj-section-heading">
+          <span className="sj-eyebrow">ALUR KERJA YANG TERHUBUNG</span>
+          <h2>Dari laporan menjadi tindak lanjut yang jelas.</h2>
+          <p>Setiap peran melihat pekerjaan yang relevan. Sistem membantu merapikan alur—bukan mengambil alih keputusan perawatan.</p>
+        </div>
+        <div className="sj-capability-grid">
+          {capabilities.map((item) => {
+            const Icon = item.icon;
+            return <article className="sj-capability-card" key={item.number}>
+              <div className="sj-capability-top"><span className="sj-capability-icon"><Icon size={20} /></span><span>{item.number}</span></div>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+            </article>;
           })}
         </div>
       </section>
 
-      {/* BAGAIMANA SAMBUNGJAGA BEKERJA? SECTION */}
-      <section id="cara-kerja" className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-xl shadow-slate-200/50 space-y-8">
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Bagaimana SambungJaga Bekerja?</h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            Dari laporan hingga tindakan, <span className="text-sky-600 font-bold">semua terhubung dalam satu</span> ekosistem
-          </p>
+      <section className="sj-role-section" id="peran">
+        <div className="sj-role-intro">
+          <span className="sj-eyebrow">SATU PLATFORM, PERAN YANG JELAS</span>
+          <h2>Informasi tepat untuk orang yang tepat.</h2>
+          <p>Workspace disesuaikan dengan kebutuhan kerja masing-masing pengguna, dengan pembatasan akses di tingkat akun dan database.</p>
+          <button type="button" onClick={onGoToRegister} className="sj-text-link">Buat akun <ArrowRight size={16} /></button>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative">
-          {steps.map((step, idx) => {
-            const Icon = step.icon;
-            return (
-              <div key={idx} className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 text-center space-y-3 relative">
-                <div className="w-7 h-7 mx-auto rounded-full bg-sky-600 text-white font-bold text-xs flex items-center justify-center shadow-md">
-                  {step.num}
-                </div>
-                <div className="w-10 h-10 mx-auto rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
-                  <Icon className="w-5 h-5" />
-                </div>
-                <h4 className="text-sm font-bold text-slate-900">{step.title}</h4>
-                <p className="text-xs text-slate-600 leading-relaxed">{step.desc}</p>
-              </div>
-            );
+        <div className="sj-role-grid">
+          {roleCards.map((role) => {
+            const Icon = role.icon;
+            return <article className="sj-role-card" key={role.title}><span><Icon size={20} /></span><div><h3>{role.title}</h3><p>{role.text}</p></div><ArrowUpRight className="sj-role-arrow" size={17} /></article>;
           })}
         </div>
       </section>
 
-      {/* TESTIMONIALS SECTION */}
-      <section id="testimoni" className="space-y-6">
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Dipercaya oleh Panti dan Keluarga</h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            Bersama SambungJaga, kami bisa memberikan perawatan terbaik dengan lebih tenang.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {testimonials.map((t, idx) => (
-            <div key={idx} className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-md shadow-slate-200/40 space-y-4 flex flex-col justify-between">
-              <Quote className="w-6 h-6 text-sky-400 opacity-60" />
-              <p className="text-xs text-slate-700 italic leading-relaxed">
-                "{t.quote}"
-              </p>
-
-              <div className="flex items-center space-x-3 pt-3 border-t border-slate-100">
-                <img src={t.avatar} alt={t.name} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">{t.name}</h4>
-                  <p className="text-[10px] text-slate-500 font-medium">{t.role}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      <section className="sj-cta-panel">
+        <div className="sj-cta-spark"><ShieldCheck size={19} /></div>
+        <div><span className="sj-eyebrow sj-eyebrow-light">SAMBUNGJAGA CARE PLATFORM</span><h2>Jaga kesinambungan. Sederhanakan koordinasi.</h2><p>Masuk ke ruang kerja sesuai peran Anda.</p></div>
+        <button type="button" onClick={onGoToLogin} className="sj-cta-button">Mulai sekarang <ArrowRight size={18} /></button>
       </section>
-
-      {/* Architecture Specification Modal Card */}
-      <ArchitectureModal
-        isOpen={isArchitectureModalOpen}
-        onClose={() => setIsArchitectureModalOpen(false)}
-      />
+      <ArchitectureModal isOpen={isArchitectureModalOpen} onClose={() => setIsArchitectureModalOpen(false)} />
     </div>
   );
 }

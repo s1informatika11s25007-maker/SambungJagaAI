@@ -5,8 +5,8 @@ import { useSambungJaga } from './hooks/core/useSambungJaga';
 import PublicHeader from './components/layout/PublicHeader';
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
-import RoleWorkspaceHeader from './components/layout/RoleWorkspaceHeader';
 import Footer from './components/layout/Footer';
+import CommandCenter from './components/dashboard/CommandCenter';
 
 // Pre-Login Pages
 import LandingPage from './pages/auth/LandingPage';
@@ -23,11 +23,23 @@ import SimulatorLabPage from './pages/simulator/SimulatorLabPage';
 import RuleLibraryPage from './pages/rule/RuleLibraryPage';
 import AuditTrailPage from './pages/audit/AuditTrailPage';
 import ExecutionTraceModal from './components/trace/ExecutionTraceModal';
+import { supabase } from './supabase/client/client';
+import { getAuthenticatedAccount, signOutUser } from './services/auth/authService';
+
+const PAGE_TITLES = {
+  caregiver_pwa: 'Tugas & Laporan',
+  supervisor_dashboard: 'Pengawasan Klinis',
+  handover_contract: 'Serah Terima Shift',
+  execution_trace: 'Jejak Keputusan AI',
+  family_portal: 'Portal Keluarga',
+  simulator_lab: 'Simulator & Analisis',
+  rule_library: 'Aturan & Kebijakan',
+  audit_trail: 'Audit Trail'
+};
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('isLoggedIn') === 'true';
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -59,12 +71,58 @@ export default function App() {
     approveAuthorityAction,
     createObligation,
     signHandoverContract,
+    createHandoverContract,
     selectedTrace,
     setSelectedTrace,
     isLoading,
     userAvatar,
-    setUserAvatar
+    setUserAvatar,
+    autopilotPlan,
+    runAutopilot
   } = useSambungJaga();
+
+  // A browser-stored role is never treated as proof of identity. Restore only a real Supabase session.
+  useEffect(() => {
+    let active = true;
+    const restoreSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!active) return;
+        if (data.session?.user) {
+          const account = await getAuthenticatedAccount(data.session.user);
+          if (active && account) {
+            loginUserAccount(account);
+            setIsLoggedIn(true);
+          } else if (active) {
+            await supabase.auth.signOut();
+            setIsLoggedIn(false);
+          }
+        } else if (active) {
+          setIsLoggedIn(false);
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('activeRole');
+        }
+      } catch (error) {
+        console.warn('Session restoration failed:', error);
+        if (active) setIsLoggedIn(false);
+      } finally {
+        if (active) setIsAuthChecking(false);
+      }
+    };
+    restoreSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' && active) {
+        logoutUserAccount();
+        setIsLoggedIn(false);
+      }
+    });
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   // Global Loading State component for elegant data fetch
   const GlobalLoader = () => (
@@ -80,36 +138,50 @@ export default function App() {
     </div>
   );
 
-  // Auth Handlers
+  // Auth Handlers — only authenticated profiles can enter a role workspace.
   const handleLoginSuccess = (roleId, accountObj) => {
-    if (accountObj) {
-      loginUserAccount(accountObj);
-    } else {
-      setActiveRole(roleId || 'supervisor');
+    if (!accountObj?.id || !accountObj?.role) {
+      navigate('/login');
+      return;
     }
+    loginUserAccount(accountObj);
     setIsLoggedIn(true);
-    if (roleId === 'caregiver') navigate('/app/caregiver_pwa');
-    else if (roleId === 'family') navigate('/app/family_portal');
-    else if (roleId === 'admin_hr') navigate('/app/simulator_lab');
+    if (accountObj.role === 'caregiver') navigate('/app/caregiver_pwa');
+    else if (accountObj.role === 'family') navigate('/app/family_portal');
+    else if (accountObj.role === 'admin_hr') navigate('/app/simulator_lab');
     else navigate('/app/supervisor_dashboard');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await signOutUser(); } catch (error) { console.warn('Sign out warning:', error); }
     logoutUserAccount();
     setIsLoggedIn(false);
     navigate('/');
   };
 
-  const handleRoleChange = (newRole) => {
-    setActiveRole(newRole);
-    if (newRole === 'caregiver') navigate('/app/caregiver_pwa');
-    else if (newRole === 'family') navigate('/app/family_portal');
-    else if (newRole === 'admin_hr') navigate('/app/simulator_lab');
-    else navigate('/app/supervisor_dashboard');
-  };
+  const defaultWorkspace = activeRole === 'caregiver'
+    ? 'caregiver_pwa'
+    : activeRole === 'family'
+      ? 'family_portal'
+      : activeRole === 'admin_hr'
+        ? 'simulator_lab'
+        : 'supervisor_dashboard';
+  const defaultPath = `/app/${defaultWorkspace}`;
+
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f5f8f6]">
+        <div className="relative grid h-16 w-16 place-items-center rounded-2xl bg-white shadow-lg shadow-emerald-950/5">
+          <Heart className="h-7 w-7 fill-emerald-700 text-emerald-700" />
+          <Loader2 className="absolute -inset-1 h-[72px] w-[72px] animate-spin text-emerald-300" />
+        </div>
+        <div className="text-center"><h1 className="font-extrabold tracking-tight text-slate-800">SambungJaga</h1><p className="mt-1 text-xs text-slate-500">Memeriksa sesi yang aman…</p></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-100 text-slate-800 font-sans selection:bg-sky-500 selection:text-white w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#f5f8f6] text-slate-800 font-sans selection:bg-emerald-100 selection:text-emerald-950 w-full overflow-x-hidden">
       <Routes>
         {!isLoggedIn ? (
           <>
@@ -164,10 +236,11 @@ export default function App() {
             element={
               <div className="flex flex-col md:flex-row min-h-screen w-full overflow-x-hidden">
                 <Sidebar
-                  activeTab={location.pathname.replace('/app/', '') || 'supervisor_dashboard'}
+                  activeTab={location.pathname.replace('/app/', '') || (activeRole === 'caregiver' ? 'caregiver_pwa' : activeRole === 'family' ? 'family_portal' : activeRole === 'admin_hr' ? 'simulator_lab' : 'supervisor_dashboard')}
                   setActiveTab={(tab) => navigate(`/app/${tab}`)}
                   activeRole={activeRole}
                   currentUser={currentUser}
+                  obligations={obligations}
                   isOffline={isOffline}
                   setIsOffline={setIsOffline}
                   offlineQueue={offlineQueue}
@@ -184,19 +257,29 @@ export default function App() {
                     userAvatar={userAvatar}
                     setUserAvatar={setUserAvatar}
                     onLogout={handleLogout}
+                    title={PAGE_TITLES[location.pathname.replace('/app/', '')] || 'Ruang Kerja'}
                   />
-                  <main className="p-4 sm:p-6 lg:p-8 space-y-6 w-full min-w-0">
-                    <RoleWorkspaceHeader
+                  <main className="sj-app-main">
+                    {location.pathname.replace('/app/', '') === 'supervisor_dashboard' && ['supervisor', 'admin_hr'].includes(activeRole) && <CommandCenter
                       activeRole={activeRole}
+                      currentUser={currentUser}
                       obligations={obligations}
-                      epistemicFacts={epistemicFacts}
-                      staff={staff}
-                    />
+                      residents={residents}
+                      autopilotPlan={autopilotPlan}
+                      onRunAutopilot={runAutopilot}
+                      onCommand={(text) => captureCareReport({
+                        text,
+                        sourceType: 'text',
+                        residentId: 'auto',
+                        actorName: currentUser?.name || currentUser?.full_name || activeRole
+                      })}
+                    />}
                     <Routes>
+                      <Route index element={<Navigate to={defaultPath} replace />} />
                       <Route
                         path="caregiver_pwa"
                         element={
-                          <CaregiverMobilePage
+                          activeRole !== 'caregiver' ? <Navigate to={defaultPath} replace /> : <CaregiverMobilePage
                             residents={residents}
                             obligations={obligations}
                             onCaptureSubmit={captureCareReport}
@@ -211,7 +294,7 @@ export default function App() {
                       <Route
                         path="supervisor_dashboard"
                         element={
-                          <SupervisorDashboardPage
+                          activeRole === 'family' ? <Navigate to="/app/family_portal" replace /> : activeRole === 'caregiver' ? <Navigate to="/app/caregiver_pwa" replace /> : <SupervisorDashboardPage
                             obligations={obligations}
                             epistemicFacts={epistemicFacts}
                             residents={residents}
@@ -223,15 +306,18 @@ export default function App() {
                             onCreateObligation={createObligation}
                             onOpenTraceModal={setSelectedTrace}
                             setActiveTab={(tab) => navigate(`/app/${tab}`)}
+                            onRunAutopilot={runAutopilot}
+                            autopilotPlan={autopilotPlan}
                           />
                         }
                       />
                       <Route
                         path="handover_contract"
                         element={
-                          <HandoverPage
+                          activeRole === 'family' ? <Navigate to="/app/family_portal" replace /> : <HandoverPage
                             handoverContracts={handoverContracts}
                             onSignContract={signHandoverContract}
+                            onCreateContract={createHandoverContract}
                             currentUserRole={activeRole}
                             currentUser={currentUser}
                             staff={staff}
@@ -243,7 +329,7 @@ export default function App() {
                       <Route
                         path="execution_trace"
                         element={
-                          <ExecutionTracePage
+                          activeRole === 'family' ? <Navigate to="/app/family_portal" replace /> : <ExecutionTracePage
                             obligations={obligations}
                             onOpenTraceModal={setSelectedTrace}
                           />
@@ -252,7 +338,7 @@ export default function App() {
                       <Route
                         path="family_portal"
                         element={
-                          <FamilyPortalPage
+                          activeRole !== 'family' ? <Navigate to={defaultPath} replace /> : <FamilyPortalPage
                             residents={residents}
                             obligations={obligations}
                             epistemicFacts={epistemicFacts}
@@ -261,12 +347,12 @@ export default function App() {
                       />
                       <Route
                         path="simulator_lab"
-                        element={<SimulatorLabPage staff={staff} obligations={obligations} />}
+                        element={activeRole === 'family' || activeRole === 'caregiver' ? <Navigate to={defaultPath} replace /> : <SimulatorLabPage staff={staff} obligations={obligations} />}
                       />
                       <Route
                         path="rule_library"
                         element={
-                          <RuleLibraryPage
+                          activeRole === 'family' ? <Navigate to="/app/family_portal" replace /> : <RuleLibraryPage
                             rules={rules}
                             setRules={setRules}
                             activeRole={activeRole}
@@ -276,11 +362,14 @@ export default function App() {
                           />
                         }
                       />
-                      <Route path="audit_trail" element={<AuditTrailPage auditTrail={auditTrail} />} />
-                      <Route path="*" element={<Navigate to="supervisor_dashboard" replace />} />
+                      <Route path="audit_trail" element={['supervisor', 'admin_hr'].includes(activeRole) ? <AuditTrailPage auditTrail={auditTrail} /> : <Navigate to={defaultPath} replace />} />
+                      <Route
+                        path="*"
+                        element={<Navigate to={defaultPath} replace />}
+                      />
                     </Routes>
                   </main>
-                  <Footer onGoToLanding={handleLogout} />
+                  <Footer compact onGoToLanding={handleLogout} />
                 </div>
               </div>
             }
@@ -288,7 +377,7 @@ export default function App() {
         )}
         <Route
           path="*"
-          element={<Navigate to={isLoggedIn ? '/app/supervisor_dashboard' : '/'} replace />}
+          element={<Navigate to={isLoggedIn ? defaultPath : '/'} replace />}
         />
       </Routes>
 

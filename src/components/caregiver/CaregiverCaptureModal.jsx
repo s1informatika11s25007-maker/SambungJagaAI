@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Send, AlertTriangle, CheckCircle, X, MicOff, Sparkles } from 'lucide-react';
+import { Mic, Send, AlertTriangle, CheckCircle, X, MicOff } from 'lucide-react';
 
 export default function CaregiverCaptureModal({ isOpen, onClose, residents, onCaptureSubmit, currentUser }) {
   const [residentId, setResidentId] = useState('auto');
@@ -96,8 +96,8 @@ export default function CaregiverCaptureModal({ isOpen, onClose, residents, onCa
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-[10px] px-2 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 font-mono font-bold flex items-center">
-              <Sparkles className="w-3 h-3 mr-1 text-sky-600" />
-              Auto-Resolution AI
+              <CheckCircle className="w-3 h-3 mr-1 text-sky-600" />
+              Auto-Resolution System
             </span>
             <button
               type="button"
@@ -164,7 +164,7 @@ export default function CaregiverCaptureModal({ isOpen, onClose, residents, onCa
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => setInputText('Tadi Wisma Melati Oma Aminah suhu tubuhnya 38.5°C dan muntah setelah makan.')}
+                onClick={() => setInputText(`Tadi ${residents?.[0]?.full_name?.split(' (')[0] || 'penghuni'} suhu tubuhnya 38.5°C dan muntah setelah makan.`)}
                 className="text-[10px] bg-amber-50 hover:bg-amber-100 text-amber-900 px-2 py-1 rounded-lg border border-amber-200 font-semibold"
               >
                 Auto-Task (Gejala Demam/Muntah)

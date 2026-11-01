@@ -37,26 +37,13 @@ export async function scanBedQrCodeNative(imageSource) {
 
 // 3. Chrome Web Crypto API (SHA-256 Hashing)
 export async function calculateSha256WebCrypto(text) {
-  if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
-    // Synchronous fallback
-    let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      hash = (hash << 5) - hash + text.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash).toString(16).padStart(64, 'a');
+  if (typeof window === 'undefined' || !window.crypto?.subtle) {
+    throw new Error('Hash SHA-256 memerlukan Web Crypto pada koneksi HTTPS atau localhost.');
   }
-
-  try {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(text);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  } catch (err) {
-    console.warn("WebCrypto SHA-256 Error:", err);
-    return Math.abs(text.length * 31).toString(16).padStart(64, '0');
-  }
+  const encoder = new TextEncoder();
+  const data = encoder.encode(String(text));
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 // 4. Chrome Service Worker Notifications & Web Push API

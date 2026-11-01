@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ShieldAlert, Download, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, Download, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { verifyAuditChainIntegrity } from '../../services/audit/auditTrailService';
 
-export default function AuditTrailPage({ auditTrail }) {
+export default function AuditTrailPage({ auditTrail = [] }) {
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const integrity = verifyAuditChainIntegrity(auditTrail);
 
@@ -10,105 +10,68 @@ export default function AuditTrailPage({ auditTrail }) {
     const pack = {
       exportTimestamp: new Date().toISOString(),
       integrityStatus: integrity,
-      auditTrail: auditTrail,
-      verificationHash: 'SHA256-CARE-EVIDENCE-PACK-SAMBUNGJAGA-2026'
+      auditTrail
     };
-
     const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Care_Evidence_Pack_${Date.now()}.json`;
-    a.click();
-
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `SambungJaga-Audit-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
     setDownloadSuccess(true);
-    setTimeout(() => setDownloadSuccess(false), 3000);
+    window.setTimeout(() => setDownloadSuccess(false), 3000);
   };
 
+  const statusClass = integrity.verified && integrity.valid
+    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+    : integrity.verified && integrity.valid === false
+      ? 'bg-rose-50 border-rose-200 text-rose-900'
+      : 'bg-amber-50 border-amber-200 text-amber-950';
+
   return (
-    <div className="w-full space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <section className="w-full space-y-6">
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-            <ShieldAlert className="w-5 h-5 text-sky-600" />
-            <span>Append-Only Hash-Chained Audit Trail [A]</span>
-          </h2>
-          <p className="text-xs text-slate-600">
-            Seluruh transaksi gerbang, verifikator, keputusan manusia, & eksekusi dicatat secara tidak dapat diubah (immutable).
-          </p>
+          <h1 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-emerald-700" /> Audit Trail</h1>
+          <p className="mt-1 text-xs text-slate-600">Jejak aksi sistem dan petugas. Hash SHA-256 dibuat oleh trigger database, bukan browser.</p>
         </div>
-
-        <button
-          onClick={handleExportEvidencePack}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-4 py-2.5 rounded-xl font-bold transition flex items-center space-x-1.5 shadow-md shadow-emerald-600/20 shrink-0"
-        >
-          <Download className="w-4 h-4" />
-          <span>Ekspor Care Evidence Pack (.json)</span>
+        <button onClick={handleExportEvidencePack} className="bg-slate-900 hover:bg-slate-800 text-white text-xs px-4 py-2.5 rounded-xl font-bold transition flex items-center gap-2">
+          <Download className="w-4 h-4" /> Ekspor JSON
         </button>
+      </header>
+
+      <div className={`p-4 rounded-2xl border flex items-start gap-3 text-xs ${statusClass}`} role="status">
+        {integrity.verified && integrity.valid ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertTriangle className="w-5 h-5 shrink-0" />}
+        <div>
+          <p className="font-bold">{integrity.verified ? (integrity.valid ? 'Rantai referensi hash tersambung' : 'Ditemukan rantai yang terputus') : 'Verifikasi hash server belum lengkap'}</p>
+          <p className="mt-1 text-[11px] opacity-90">{integrity.reason || `${integrity.totalRecords} entri dengan hash server tersedia.`}</p>
+        </div>
       </div>
 
-      {/* Integrity Banner */}
-      <div className={`p-4 rounded-2xl border flex items-center justify-between text-xs shadow-sm w-full ${
-        integrity.valid
-          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-          : 'bg-rose-50 border-rose-300 text-rose-900'
-      }`}>
-        <div className="flex items-center space-x-2">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-          <div>
-            <span className="font-bold">Integritas Hash Chain Audit: OK VERIFIED</span>
-            <p className="text-[11px] opacity-90">{integrity.totalRecords} entri audit terhubung secara aman tanpa manipulasi.</p>
-          </div>
-        </div>
-        <span className="font-mono text-[11px] bg-white px-2 py-1 rounded border border-slate-300 font-bold">
-          SHA-256 Ledger
-        </span>
-      </div>
+      {downloadSuccess && <div className="p-3 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs">File audit berhasil disiapkan.</div>}
 
-      {downloadSuccess && (
-        <div className="p-3 bg-sky-50 border border-sky-300 text-sky-900 rounded-xl text-xs flex items-center space-x-2">
-          <CheckCircle2 className="w-4 h-4 text-sky-600" />
-          <span>Care Evidence Pack berhasil diunduh untuk kebutuhan audit legal / medis.</span>
-        </div>
-      )}
-
-      {/* Audit Log Table */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xl shadow-slate-200/50 w-full">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left text-xs text-slate-800">
-            <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-mono font-bold border-b border-slate-200">
-              <tr>
-                <th className="px-4 py-3">Seq #</th>
-                <th className="px-4 py-3">Gerbang / Tag [A]</th>
-                <th className="px-4 py-3">Nama Aksi</th>
-                <th className="px-4 py-3">Aktor</th>
-                <th className="px-4 py-3">SHA-256 Hash</th>
-                <th className="px-4 py-3">Waktu</th>
-              </tr>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-xs text-slate-800">
+            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-slate-200">
+              <tr><th className="px-4 py-3">Seq</th><th className="px-4 py-3">Gerbang</th><th className="px-4 py-3">Aksi</th><th className="px-4 py-3">Aktor</th><th className="px-4 py-3">Hash database</th><th className="px-4 py-3">Waktu</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {auditTrail.map((entry) => (
-                <tr key={entry.id} className="hover:bg-slate-50 transition">
-                  <td className="px-4 py-3 font-mono font-bold text-amber-700">#{entry.sequence_id}</td>
-                  <td className="px-4 py-3">
-                    <span className="bg-sky-100 text-sky-800 px-2 py-0.5 rounded font-mono text-[10px] border border-sky-300 font-bold">
-                      {entry.gateway_tag}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-bold text-slate-900">{entry.action_name}</td>
-                  <td className="px-4 py-3 text-slate-600">{entry.actor_name}</td>
-                  <td className="px-4 py-3 font-mono text-[10px] text-slate-500 truncate max-w-[200px]">
-                    {entry.entry_hash}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                    {new Date(entry.created_at).toLocaleTimeString('id-ID')}
-                  </td>
+              {auditTrail.length ? auditTrail.map((entry) => (
+                <tr key={entry.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-mono">{entry.sequence_id ? `#${entry.sequence_id}` : 'Lokal'}</td>
+                  <td className="px-4 py-3">{entry.gateway_tag}</td>
+                  <td className="px-4 py-3 font-semibold">{entry.action_name}</td>
+                  <td className="px-4 py-3">{entry.actor_name || 'Petugas'}</td>
+                  <td className="px-4 py-3 font-mono text-[10px] text-slate-500 max-w-[220px] truncate">{entry.entry_hash || 'Menunggu sinkronisasi'}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{entry.created_at ? new Date(entry.created_at).toLocaleString('id-ID') : '—'}</td>
                 </tr>
-              ))}
+              )) : <tr><td colSpan="6" className="px-4 py-12 text-center text-slate-500">Belum ada catatan audit di database.</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

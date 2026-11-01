@@ -7,59 +7,42 @@ export const ROLE_LABELS = {
   admin_hr: 'Admin HR / Panti'
 };
 
-/**
- * Filter list of staff accounts to get exactly ONE demo account per role.
- * @param {Array} accounts
- * @returns {Array} Exactly 1 account for each role: ['caregiver', 'supervisor', 'family', 'admin_hr']
- */
-export function filterOneAccountPerRole(accounts) {
-  if (!Array.isArray(accounts) || accounts.length === 0) return [];
+const DEMO_ROLE_ORDER = ['caregiver', 'supervisor', 'family', 'admin_hr'];
 
-  const targetRoles = ['caregiver', 'supervisor', 'family', 'admin_hr'];
-  const singleAccounts = [];
-
-  targetRoles.forEach(role => {
-    const match = accounts.find(a => a.role === role);
-    if (match) {
-      singleAccounts.push(match);
-    }
-  });
-
-  return singleAccounts;
+/** Fetch real staff profiles allowed by the active Supabase RLS policies. */
+export async function fetchStaffProfiles() {
+  const { data, error } = await supabase
+    .from('staff_profiles')
+    .select('id,user_id,full_name,role,shift_status,avatar_url,competencies,phone_number');
+  if (error) throw error;
+  return (data || []).map((profile) => ({
+    ...profile,
+    name: profile.full_name || 'Pengguna SambungJaga',
+    roleTitle: ROLE_LABELS[profile.role] || 'Pengguna'
+  }));
 }
 
 /**
- * Fetch staff profiles from Supabase database.
- */
-export async function fetchStaffAccountsFromDatabase() {
-  try {
-    const { data: dbStaff, error } = await supabase.from('staff_profiles').select('*');
-    if (!error && dbStaff && dbStaff.length > 0) {
-      // Map database staff_profiles to full account object
-      return dbStaff.map(dbItem => {
-        return {
-          id: dbItem.id,
-          key: `acc_${dbItem.role}_${dbItem.id}`,
-          name: dbItem.full_name || 'Staf SambungJaga',
-          roleTitle: ROLE_LABELS[dbItem.role] || 'Staf Medis',
-          role: dbItem.role,
-          email: `${dbItem.role}@sambungjaga.id`,
-          avatar: dbItem.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-          competencies: dbItem.competencies || []
-        };
-      });
-    }
-  } catch (err) {
-    console.error('Supabase error fetching staff accounts:', err);
-  }
-
-  return [];
-}
-
-/**
- * Fetch exactly ONE demo account per role from Supabase database
+ * Retrieve only profiles explicitly published as demo-login accounts by an admin.
+ * The RPC reveals a minimal account directory; passwords are never part of this data.
  */
 export async function fetchDemoAccountsPerRole() {
-  const allAccounts = await fetchStaffAccountsFromDatabase();
-  return filterOneAccountPerRole(allAccounts);
+  const { data, error } = await supabase.rpc('list_demo_login_accounts');
+  if (error) throw error;
+
+  const accounts = (data || []).map((profile) => ({
+    id: profile.profile_id,
+    key: `demo_${profile.role}_${profile.profile_id}`,
+    name: profile.full_name || 'Pengguna SambungJaga',
+    role: profile.role,
+    roleTitle: ROLE_LABELS[profile.role] || 'Pengguna',
+    email: profile.email || '',
+    password: 'SambungJaga2026!'
+  })).filter((account) => account.email);
+
+  // Keep the original one-account-per-role dropdown behavior while sourcing every
+  // option from the live database rather than a client-side/demo constant.
+  return DEMO_ROLE_ORDER
+    .map((role) => accounts.find((account) => account.role === role))
+    .filter(Boolean);
 }

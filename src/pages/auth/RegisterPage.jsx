@@ -1,268 +1,138 @@
 import React, { useState } from 'react';
 import {
-  Heart,
-  User,
-  Mail,
-  Phone,
-  Building,
-  ArrowRight,
-  CheckCircle2,
-  ArrowLeft,
-  ShieldCheck,
-  Loader2
+  Heart, UserRound, Mail, Phone, ArrowRight, ArrowLeft, ShieldCheck,
+  LockKeyhole, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2
 } from 'lucide-react';
-import { supabase } from '../../supabase/client/client';
-import { ROLE_LABELS } from '../../services/dashboard/staffService';
+import { signUpWithEmailPassword, getAuthErrorMessage } from '../../services/auth/authService';
+
+const roleOptions = [
+  { value: 'caregiver', label: 'Pengasuh / Perawat', hint: 'Mencatat laporan dan menjalankan tugas' },
+  { value: 'family', label: 'Keluarga / Wali', hint: 'Melihat informasi yang dibagikan fasilitas' }
+];
 
 export default function RegisterPage({ onRegisterSuccess, onGoToLogin, onGoToLanding }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('caregiver');
-  const [facilityCode, setFacilityCode] = useState('PANTI-DAHLIA-JKT');
   const [phone, setPhone] = useState('');
+  const [role, setRole] = useState('caregiver');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!fullName.trim() || !email.trim()) return;
-
-    setIsRegistering(true);
-
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      full_name: fullName.trim(),
-      role: role,
-      email: email.trim(),
-      phone: phone.trim(),
-      facility_code: facilityCode,
-      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-      competencies: ['clinical_care', 'vital_signs']
-    };
-
-    // Insert into Supabase staff_profiles table and capture database ID
-    try {
-      const { data: dbStaff, error } = await supabase.from('staff_profiles').insert([{
-        full_name: newUser.full_name,
-        role: newUser.role,
-        phone_number: newUser.phone,
-        avatar_url: newUser.avatar_url,
-        competencies: newUser.competencies
-      }]).select().single();
-
-      if (!error && dbStaff) {
-        newUser.id = dbStaff.id;
-      }
-    } catch (err) {
-      console.warn("Notice: Registered staff saved to local session context.", err);
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setNeedsConfirmation(false);
+    if (password.length < 8) {
+      setError('Kata sandi minimal 8 karakter.');
+      return;
     }
-
-    const accountObj = {
-      id: newUser.id,
-      key: `acc_${role}_${newUser.id}`,
-      name: newUser.full_name,
-      roleTitle: ROLE_LABELS[role] || 'Staf Medis',
-      role: role,
-      email: newUser.email,
-      avatar: newUser.avatar_url,
-      competencies: newUser.competencies
-    };
-
-    setSubmitted(true);
-    setTimeout(() => {
-      onRegisterSuccess(role, accountObj);
-    }, 1200);
+    if (password !== confirmPassword) {
+      setError('Konfirmasi kata sandi belum sama.');
+      return;
+    }
+    setIsRegistering(true);
+    try {
+      const result = await signUpWithEmailPassword({ fullName, email, phone, role, password });
+      if (result.needsEmailConfirmation) {
+        setNeedsConfirmation(true);
+        return;
+      }
+      onRegisterSuccess(result.account.role, result.account);
+    } catch (err) {
+      setError(getAuthErrorMessage(err));
+    } finally {
+      setIsRegistering(false);
+    }
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-gradient-to-br from-slate-50 via-sky-50/30 to-slate-100 font-sans text-slate-900 overflow-x-hidden">
-
-      {/* LEFT COLUMN: Full-Height gunung.jpeg Background Banner */}
-      <div className="w-full lg:w-5/12 min-h-[380px] lg:min-h-screen relative flex flex-col justify-between p-8 lg:p-12 overflow-hidden text-white shadow-2xl shrink-0 animate-fade-in">
-
-        {/* Full-Height Background Image (/gunung.jpeg) */}
+    <main className="sj-auth-shell">
+      <section className="sj-auth-visual sj-auth-visual-register">
         <img
           src="/gunung.jpeg"
-          onError={(e) => { e.target.src = '/Tua.jpeg'; }}
-          alt="Pemandangan Alam SambungJaga"
-          className="absolute inset-0 w-full h-full object-cover object-center z-0"
+          onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/Tua.jpeg'; }}
+          alt="Pemandangan alam untuk halaman pendaftaran SambungJaga"
+          className="sj-auth-photo"
         />
-
-        {/* Dark Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/60 to-slate-900/75 backdrop-blur-[2px] z-0"></div>
-
-        {/* Brand Header */}
-        <div className="relative z-10 flex items-center justify-between">
-          <div
-            onClick={onGoToLanding}
-            className="flex items-center space-x-2.5 cursor-pointer group"
-          >
-            <div className="p-2 bg-sky-600 rounded-xl text-white shadow-lg shadow-sky-600/30 group-hover:scale-105 transition flex items-center justify-center shrink-0">
-              <Heart className="w-5 h-5 fill-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight text-white">
-                Sambung<span className="text-sky-400">Jaga</span>
-              </h1>
-              <p className="text-xs text-sky-200 font-bold">Care Superagent</p>
-            </div>
-          </div>
-
-          <button
-            onClick={onGoToLanding}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white/15 hover:bg-white/25 text-white border border-white/20 backdrop-blur-md transition shadow-md"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-sky-300" />
-            <span>Kembali</span>
+        <div className="sj-auth-visual-top">
+          <button type="button" onClick={onGoToLanding} className="sj-brand-lockup sj-brand-light">
+            <span className="sj-brand-mark"><Heart size={21} fill="currentColor" /></span>
+            <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
           </button>
+          <button type="button" onClick={onGoToLanding} className="sj-back-link"><ArrowLeft size={16} /> Beranda</button>
         </div>
+        <div className="sj-auth-story animate-fade-up">
+          <span className="sj-eyebrow sj-eyebrow-light"><ShieldCheck size={14} /> MEMULAI DENGAN AMAN</span>
+          <h1>Kolaborasi perawatan dimulai dari <em>akses yang tepat.</em></h1>
+          <p>Buat identitas akun terlebih dahulu. Hak akses mengikuti peran yang diverifikasi dan relasi penghuni yang diberikan fasilitas.</p>
+          <div className="sj-auth-callout"><LockKeyhole size={18} /><span>Supervisor dan Admin dibuat melalui undangan administrator untuk mencegah peningkatan hak akses mandiri.</span></div>
+        </div>
+        <div className="sj-auth-visual-footer"><span>Privasi dan tanggung jawab tetap diutamakan.</span><span>02 / 03</span></div>
+      </section>
 
-        {/* Hero Message */}
-        <div className="relative z-10 my-auto py-8 space-y-3 text-left">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30 text-xs font-bold backdrop-blur-md">
-            <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
-            <span>Pendaftaran Akun Baru</span>
+      <section className="sj-auth-panel">
+        <div className="sj-auth-panel-inner sj-register-inner animate-fade-up">
+          <div className="sj-auth-mobile-brand sj-brand-lockup">
+            <span className="sj-brand-mark"><Heart size={20} fill="currentColor" /></span>
+            <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
+          </div>
+          <div className="sj-auth-heading">
+            <span className="sj-eyebrow">PENDAFTARAN AKUN</span>
+            <h2>Buat akun baru</h2>
+            <p>Isi beberapa detail untuk membuat identitas pengguna.</p>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight">
-            Bergabung dalam Jaringan <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-300 to-indigo-300">
-              Perawatan Lansia Terverifikasi
-            </span>
-          </h2>
-        </div>
-
-        {/* Trust Footer */}
-        <div className="relative z-10 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-slate-300 font-medium">
-          <span className="flex items-center text-emerald-400 font-bold">
-            <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-400" /> Akses Terproteksi Realtime
-          </span>
-        </div>
-      </div>
-
-      {/* RIGHT COLUMN: Streamlined Registration Form */}
-      <div className="w-full lg:w-7/12 bg-white p-8 lg:p-16 flex flex-col justify-center space-y-6 shadow-xl animate-fade-in">
-
-        <div className="space-y-1.5 w-full text-left">
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Pendaftaran Akun Baru</h2>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            Buat akun staf medis atau keluarga pasien untuk langsung mengakses sistem
-          </p>
-        </div>
-
-        <div className="w-full space-y-4">
-          {submitted ? (
-            <div className="p-6 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-2xl text-center space-y-3 shadow-md animate-fade-in">
-              <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto animate-bounce" />
-              <h3 className="font-bold text-base">Pendaftaran Berhasil!</h3>
-              <p className="text-xs opacity-90 font-medium">Mengarahkan Anda ke ruang kerja {ROLE_LABELS[role] || 'Staf'}...</p>
+          {needsConfirmation ? (
+            <div className="sj-confirmation-card" role="status">
+              <span className="sj-confirmation-icon"><Mail size={25} /></span>
+              <h3>Periksa email Anda</h3>
+              <p>Tautan verifikasi telah diminta untuk <strong>{email}</strong>. Selesaikan verifikasi dari kotak masuk sebelum masuk ke SambungJaga.</p>
+              <button type="button" onClick={onGoToLogin} className="sj-primary-button">Kembali ke halaman masuk <ArrowRight size={17} /></button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4 text-left w-full">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center">
-                  <User className="w-3.5 h-3.5 mr-1 text-sky-600" /> Nama Lengkap Staf / Wali
+            <form onSubmit={handleSubmit} className="sj-auth-form">
+              <label className="sj-field">
+                <span>Nama lengkap</span>
+                <span className="sj-input-wrap"><UserRound size={18} /><input required autoComplete="name" maxLength={100} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nama sesuai identitas" /></span>
+              </label>
+              <div className="sj-form-grid">
+                <label className="sj-field">
+                  <span>Peran akun</span>
+                  <select value={role} onChange={(e) => setRole(e.target.value)}>{roleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+                  <small>{roleOptions.find((option) => option.value === role)?.hint}</small>
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Suster Dewi Pertiwi, Amd.Kep"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-900 font-semibold outline-none focus:ring-2 focus:ring-sky-500 transition shadow-2xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Peran Utama (Role)</label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-3 text-xs sm:text-sm text-slate-900 font-bold outline-none focus:ring-2 focus:ring-sky-500 transition shadow-2xs"
-                  >
-                    <option value="caregiver">Pengasuh / Perawat</option>
-                    <option value="supervisor">Supervisor Klinis</option>
-                    <option value="family">Keluarga Pasien</option>
-                    <option value="admin_hr">Admin HR / Panti</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center">
-                    <Building className="w-3.5 h-3.5 mr-1 text-sky-600" /> Kode Panti
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={facilityCode}
-                    onChange={(e) => setFacilityCode(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-900 font-semibold outline-none focus:ring-2 focus:ring-sky-500 transition shadow-2xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center">
-                  <Mail className="w-3.5 h-3.5 mr-1 text-sky-600" /> Alamat Email
+                <label className="sj-field">
+                  <span>Nomor telepon <small>(opsional)</small></span>
+                  <span className="sj-input-wrap"><Phone size={18} /><input type="tel" autoComplete="tel" maxLength={24} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08xx…" /></span>
                 </label>
-                <input
-                  type="email"
-                  required
-                  placeholder="dewi@panti.id"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-900 font-semibold outline-none focus:ring-2 focus:ring-sky-500 transition shadow-2xs"
-                />
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center">
-                  <Phone className="w-3.5 h-3.5 mr-1 text-sky-600" /> Nomor WhatsApp
-                </label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="+62 812 3456 7890"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-900 font-semibold outline-none focus:ring-2 focus:ring-sky-500 transition shadow-2xs"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isRegistering}
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm sm:text-base py-4 rounded-xl shadow-lg shadow-sky-600/25 hover:shadow-sky-600/40 transition duration-300 flex items-center justify-center space-x-2 mt-2 disabled:opacity-70"
-              >
-                {isRegistering ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Mendaftarkan Akun...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Daftar & Masuk Sistem</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+              <label className="sj-field">
+                <span>Email</span>
+                <span className="sj-input-wrap"><Mail size={18} /><input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" /></span>
+              </label>
+              <label className="sj-field">
+                <span>Kata sandi <small>(minimal 8 karakter)</small></span>
+                <span className="sj-input-wrap"><LockKeyhole size={18} /><input type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Buat kata sandi" /><button type="button" className="sj-password-toggle" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span>
+              </label>
+              <label className="sj-field">
+                <span>Ulangi kata sandi</span>
+                <span className="sj-input-wrap"><LockKeyhole size={18} /><input type={showPassword ? 'text' : 'password'} autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ketik ulang kata sandi" /></span>
+              </label>
+              {error && <div role="alert" className="sj-form-alert sj-form-alert-error"><AlertCircle size={17} /><span>{error}</span></div>}
+              <button type="submit" className="sj-primary-button" disabled={isRegistering || !fullName.trim() || !email.trim() || !password || !confirmPassword}>
+                {isRegistering ? <><Loader2 size={18} className="animate-spin" /> Membuat akun…</> : <>Buat akun <ArrowRight size={18} /></>}
               </button>
             </form>
           )}
-
-          {/* Footer Link */}
-          <div className="pt-3 text-center text-xs text-slate-600 border-t border-slate-100 w-full">
-            Sudah punya akun?{' '}
-            <button
-              onClick={onGoToLogin}
-              className="font-bold text-sky-600 hover:underline ml-1"
-            >
-              Masuk &rarr;
-            </button>
-          </div>
+          <div className="sj-auth-divider"><span>SUDAH PUNYA AKUN?</span></div>
+          <button type="button" onClick={onGoToLogin} className="sj-secondary-button">Masuk ke SambungJaga <ArrowRight size={17} /></button>
+          <p className="sj-auth-footnote"><ShieldCheck size={15} /> Pembuatan akun menggunakan verifikasi email Supabase Auth.</p>
         </div>
-
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

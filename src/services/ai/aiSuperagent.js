@@ -9,6 +9,42 @@ import { supabase } from '../../supabase/client/client';
 import { runGeminiNanoSuperagent } from './geminiNanoService';
 
 const superagentCache = new Map();
+const cacheSet = (k, v) => {
+  if (superagentCache.size >= 50) superagentCache.delete(superagentCache.keys().next().value);
+  superagentCache.set(k, v);
+};
+const genId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `mission-${Date.now()}`);
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
+const CLINICAL_ACTION_PATTERN = /\b(obat|medikasi|parasetamol|paracetamol|amlodipine|insulin|suntik|injeksi|dosis|mg\b|ml\b|resep|beri(?:kan)?|hentikan|naikkan|turunkan)\b/i;
+const ALLOWED_PRIORITIES = new Set(['routine', 'important', 'critical', 'emergency']);
+
+function normalizeAgentResult(raw, context, source) {
+  const residents = context?.residents || [];
+  const matched = residents.find((resident) => resident.id === raw?.detectedResidentId) || null;
+  const suggestions = Array.isArray(raw?.proposedObligations) ? raw.proposedObligations.slice(0, 3).map((item) => {
+    const title = String(item?.title || 'Tinjau laporan bersama supervisor').slice(0, 180);
+    const requiresGenericReview = CLINICAL_ACTION_PATTERN.test(`${title} ${item?.description || ''}`);
+    return {
+      title: requiresGenericReview ? 'Tinjau laporan observasi bersama supervisor' : title,
+      description: 'Tinjauan oleh petugas berwenang diperlukan. AI tidak menetapkan diagnosis, dosis, tindakan klinis, atau penutupan tugas.',
+      priority: ALLOWED_PRIORITIES.has(item?.priority) ? item.priority : 'important',
+      required_evidence_grade: ['E0', 'E1', 'E2', 'E3'].includes(item?.required_evidence_grade) ? item.required_evidence_grade : 'E1',
+      valid_until_minutes: Math.max(5, Math.min(Number(item?.valid_until_minutes) || 120, 1440)),
+      resident_id: matched?.id || context?.resident?.id || null,
+      requires_human_review: true
+    };
+  }) : [];
+  return {
+    source,
+    result: String(raw?.result || 'Laporan dianalisis dan menunggu tindak lanjut petugas.'),
+    detectedResidentId: matched?.id || context?.resident?.id || null,
+    detectedResidentName: matched?.full_name || context?.resident?.full_name || null,
+    autoCloseObligation: null,
+    proposedObligations: suggestions,
+    modelsChainUsed: Array.isArray(raw?.modelsChainUsed) ? raw.modelsChainUsed : []
+  };
+}
 
 /**
  * Executes Atomic Database Persistence via Single-Roundtrip PL/pgSQL RPC
@@ -61,8 +97,9 @@ export async function runCareSuperagent(prompt, context) {
   try {
     const nanoResult = await runGeminiNanoSuperagent(prompt, context);
     if (nanoResult) {
-      superagentCache.set(cacheKey, nanoResult);
-      return nanoResult;
+      const safeResult = normalizeAgentResult(nanoResult, context, 'on_device_ai');
+      cacheSet(cacheKey, safeResult);
+      return safeResult;
     }
   } catch (nanoErr) {
     console.warn("Gemini Nano Tier 1 bypass, moving to Cloud Edge Function:", nanoErr);
@@ -70,35 +107,16 @@ export async function runCareSuperagent(prompt, context) {
 
   // Tier 2: Supabase Edge Function (Multi-Model Pipeline)
   try {
-    const { data, error } = await supabase.functions.invoke('ai_superagent', {
-      body: { prompt, context, missionId: crypto.randomUUID() }
-    });
+    const { data, error } = await withTimeout(supabase.functions.invoke('ai_superagent', {
+      body: { prompt, context, missionId: genId() }
+    }), 8000);
 
     if (!error && data) {
       if (typeof data === 'object') {
-        const structured = {
-          source: 'groq_cloud_edge_function',
-          result: data.result || "Pemeriksaan laporan berhasil dicatat oleh SambungJaga Superagent.",
-          detectedResidentId: data.detectedResidentId || null,
-          detectedResidentName: data.detectedResidentName || null,
-          autoCloseObligation: data.autoCloseObligation || null,
-          proposedObligations: data.proposedObligations || [],
-          modelsChainUsed: data.modelsChainUsed || []
-        };
+        const structured = normalizeAgentResult(data, context, 'groq_cloud_edge_function');
 
-        // Automatically execute atomic DB persistence if resident is detected
-        if (structured.detectedResidentId || context?.resident?.id) {
-          const targetResId = structured.detectedResidentId || context?.resident?.id;
-          await recordFactAndObligationAtomic({
-            residentId: targetResId,
-            factValue: { prompt, analysis: structured.result },
-            closeObligationId: structured.autoCloseObligation?.obligationId || null,
-            closeNote: structured.autoCloseObligation?.completionNote || null,
-            proposedObligations: structured.proposedObligations
-          });
-        }
-
-        superagentCache.set(cacheKey, structured);
+        // Persistence is performed once by the calling care workflow. A narrative never closes work.
+        cacheSet(cacheKey, structured);
         return structured;
       }
     }
@@ -109,83 +127,38 @@ export async function runCareSuperagent(prompt, context) {
   // Tier 3: Local Rule-Based Fallback Engine (Zero-Friction & Autonomous Task Generation)
   const lowerPrompt = prompt.toLowerCase();
   const residents = context?.residents || [];
-  const activeObs = context?.activeObligations || [];
 
-  // 1. Auto Resident Entity Resolution
-  let detectedResident = null;
-  for (const r of residents) {
-    const nameLower = (r.full_name || '').toLowerCase();
-    const roomLower = (r.room_number || '').toLowerCase();
-    const firstName = nameLower.split(' ')[0];
-    const lastName = nameLower.split(' ').pop();
+  // Resolve a resident only with a full registered name or room number; ambiguity is rejected.
+  const residentMatches = residents.filter((resident) => {
+    const fullName = String(resident.full_name || '').trim().toLowerCase();
+    const room = String(resident.room_number || '').trim().toLowerCase();
+    return (fullName.length > 3 && lowerPrompt.includes(fullName)) || (room.length > 1 && lowerPrompt.includes(room));
+  });
+  const detectedResident = residentMatches.length === 1 ? residentMatches[0] : null;
 
-    if (
-      (firstName && firstName.length > 2 && lowerPrompt.includes(firstName)) ||
-      (lastName && lastName.length > 2 && lowerPrompt.includes(lastName)) ||
-      (roomLower && lowerPrompt.includes(roomLower))
-    ) {
-      detectedResident = r;
-      break;
-    }
-  }
-
-  // 2. Auto-Closing via Voice Intent
-  let autoCloseObligation = null;
-  const closeKeywords = ['selesai', 'diselesaikan', 'sudah diminumkan', 'sudah diberikan', 'sudah diinjeksi', 'sudah diukur', 'sudah disuntikkan', 'tensi', 'injeksi'];
-  const isClosingIntent = closeKeywords.some(kw => lowerPrompt.includes(kw));
-
-  if (isClosingIntent) {
-    const resId = detectedResident?.id || context?.resident?.id;
-    const matchedOb = activeObs.find(o => {
-      const matchRes = !resId || o.resident_id === resId;
-      const titleLower = o.title.toLowerCase();
-      const matchTitle = titleLower.split(' ').some(word => word.length > 3 && lowerPrompt.includes(word));
-      return matchRes && matchTitle;
-    }) || activeObs.find(o => !resId || o.resident_id === resId);
-
-    if (matchedOb) {
-      autoCloseObligation = {
-        obligationId: matchedOb.id,
-        matchedTitle: matchedOb.title,
-        completionNote: `Dikonfirmasi selesai via laporan suara: "${prompt}"`
-      };
-    }
-  }
-
-  // 3. Autonomous Task Generation Intent
+  // Narratives are never evidence of completion. The engine can create review work only.
   const proposedObligations = [];
-  const defaultResId = context?.residents?.[0]?.id || null;
-  if (lowerPrompt.includes('38') || lowerPrompt.includes('demam') || lowerPrompt.includes('suhu tinggi') || lowerPrompt.includes('muntah') || lowerPrompt.includes('mual')) {
-    const targetResId = detectedResident?.id || context?.resident?.id || defaultResId;
+  const targetResident = detectedResident || context?.resident || null;
+  const needsReview = /38|demam|suhu tinggi|muntah|mual|gula darah|insulin|jatuh|terjatuh|terpeleset|tidak mau makan|menolak makan|nafsu makan|sesak|nyeri dada|pingsan|tidak sadar/i.test(lowerPrompt);
+  const urgentSignal = /sesak|nyeri dada|pingsan|tidak sadar|jatuh|terjatuh|terpeleset/i.test(lowerPrompt);
+  if (needsReview && targetResident) {
     proposedObligations.push({
-      title: 'Berikan Parasetamol 500mg & Kompres Hangat',
-      description: `Pemicu Otonom AI: Terdeteksi gejala demam/muntah dari laporan suara pengasuh ("${prompt}").`,
-      priority: 'critical',
+      title: urgentSignal ? 'Tinjau laporan segera bersama petugas berwenang' : 'Tinjau laporan observasi bersama supervisor',
+      description: 'Laporan memerlukan penilaian petugas berwenang. AI tidak memberikan instruksi klinis dan tidak menutup kewajiban.',
+      priority: urgentSignal ? 'critical' : 'important',
       required_evidence_grade: 'E1',
-      valid_until_minutes: 120,
-      resident_id: targetResId
-    });
-  } else if (lowerPrompt.includes('gula darah') || lowerPrompt.includes('145') || lowerPrompt.includes('200') || lowerPrompt.includes('insulin')) {
-    const targetResId = detectedResident?.id || context?.resident?.id || defaultResId;
-    proposedObligations.push({
-      title: 'Verifikasi Kadar Gula Darah & Jadwal Insulin Post-Prandial',
-      description: `Pemicu Otonom AI: Terdeteksi pengukuran gula darah/insulin ("${prompt}").`,
-      priority: 'urgent',
-      required_evidence_grade: 'E1',
-      valid_until_minutes: 60,
-      resident_id: targetResId
+      valid_until_minutes: urgentSignal ? 15 : 120,
+      resident_id: targetResident.id,
+      requires_human_review: true
     });
   }
 
-  const resultObj = {
-    source: 'local_rule_fallback',
-    result: `Laporan berhasil dianalisis. ${detectedResident ? `Entitas lansia teridentifikasi: ${detectedResident.full_name}.` : ''} ${proposedObligations.length > 0 ? `AI membuat ${proposedObligations.length} kewajiban perawatan baru.` : ''} ${autoCloseObligation ? `Auto-Closing dipicu untuk tugas: ${autoCloseObligation.matchedTitle}.` : ''}`,
-    detectedResidentId: detectedResident?.id || null,
-    detectedResidentName: detectedResident?.full_name || null,
-    autoCloseObligation,
+  const resultObj = normalizeAgentResult({
+    result: `Laporan dianalisis. ${targetResident ? `Penghuni teridentifikasi: ${targetResident.full_name}.` : 'Penghuni perlu dipilih atau disebutkan secara jelas.'} ${proposedObligations.length ? 'Tugas tinjauan dibuat dan menunggu verifikasi petugas.' : 'Tidak ada tugas otomatis yang dibuat dari laporan ini.'}`,
+    detectedResidentId: targetResident?.id || null,
     proposedObligations
-  };
+  }, context, 'local_rule_fallback');
 
-  superagentCache.set(cacheKey, resultObj);
+  cacheSet(cacheKey, resultObj);
   return resultObj;
 }

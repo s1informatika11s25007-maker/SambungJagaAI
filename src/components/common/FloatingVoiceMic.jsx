@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Sparkles, Check, AlertCircle, X, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Activity, Loader2, Check, AlertCircle, X, Volume2 } from 'lucide-react';
 import { playSuccessChime } from '../../services/dashboard/audioAlertService';
 
 export default function FloatingVoiceMic({ onCaptureSubmit, currentUser }) {
@@ -62,8 +62,11 @@ export default function FloatingVoiceMic({ onCaptureSubmit, currentUser }) {
 
   const toggleListening = () => {
     if (!speechSupported) {
-      // Simulated speech trigger if browser Web Speech API is unavailable
-      runSimulatedHandsFreeVoice();
+      setResultToast({
+        type: 'error',
+        title: 'Dikte suara tidak tersedia',
+        message: 'Browser ini belum mendukung Web Speech API. Gunakan formulir laporan teks pada halaman Pengasuh; tidak ada laporan contoh yang dikirim otomatis.'
+      });
       return;
     }
 
@@ -128,20 +131,7 @@ export default function FloatingVoiceMic({ onCaptureSubmit, currentUser }) {
     setTimeout(() => setResultToast(null), 5000);
   };
 
-  const runSimulatedHandsFreeVoice = () => {
-    const sampleVoiceReports = [
-      "Pemeriksaan tensi lansia normal 120/80 mmHg, obat rutin sudah diminumkan.",
-      "Laporan observasi: suhu 36.5 derajat Celcius, kondisi stabil.",
-      "Pengukuran gula darah puasa stabil, makan pagi selesai dihabiskan."
-    ];
-    const randomReport = sampleVoiceReports[Math.floor(Math.random() * sampleVoiceReports.length)];
-    setTranscript(randomReport);
-    setIsListening(true);
 
-    setTimeout(() => {
-      handleAutoSubmit(randomReport);
-    }, 1800);
-  };
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end space-y-3 pointer-events-none">
@@ -154,7 +144,7 @@ export default function FloatingVoiceMic({ onCaptureSubmit, currentUser }) {
         }`}>
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-2">
-              <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
               <p className="font-bold text-white text-xs">{resultToast.title}</p>
             </div>
             <button onClick={() => setResultToast(null)} className="text-slate-400 hover:text-white">
@@ -208,7 +198,7 @@ export default function FloatingVoiceMic({ onCaptureSubmit, currentUser }) {
           }`}
         >
           {isProcessing ? (
-            <Sparkles className="w-6 h-6 animate-spin" />
+            <Loader2 className="w-6 h-6 animate-spin" />
           ) : isListening ? (
             <MicOff className="w-6 h-6 animate-bounce" />
           ) : (

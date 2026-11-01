@@ -222,27 +222,6 @@ ALTER TABLE kernel_domain.bitemporal_obligations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kernel_domain.evidence_verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_domain.audit_trail ENABLE ROW LEVEL SECURITY;
 
--- Staff Profiles: Staff can view all profiles, admin can update
-CREATE POLICY "Staff read profiles" ON hr_domain.staff_profiles FOR SELECT USING (true);
-CREATE POLICY "Admin manage profiles" ON hr_domain.staff_profiles FOR ALL USING (
-  auth.jwt() ->> 'role' = 'admin_hr' OR true
-);
-
--- Residents: Staff and Family (filtered) can read
-CREATE POLICY "Staff read residents" ON resident_domain.residents FOR SELECT USING (true);
-
--- Epistemic Facts: Staff read & insert
-CREATE POLICY "Staff manage epistemic facts" ON kernel_domain.epistemic_facts FOR ALL USING (true);
-
--- Bitemporal Obligations: Staff manage obligations
-CREATE POLICY "Staff manage obligations" ON kernel_domain.bitemporal_obligations FOR ALL USING (true);
-
--- Evidence Verifications: Staff insert & select
-CREATE POLICY "Staff manage evidence" ON kernel_domain.evidence_verifications FOR ALL USING (true);
-
--- Audit Trail: Read-only for authenticated staff, insert via trigger/gateway
-CREATE POLICY "Read audit trail" ON audit_domain.audit_trail FOR SELECT USING (true);
-
 -- Realtime Publication Setup
 ALTER PUBLICATION supabase_realtime ADD TABLE kernel_domain.bitemporal_obligations;
 ALTER PUBLICATION supabase_realtime ADD TABLE kernel_domain.epistemic_facts;
@@ -264,27 +243,6 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 );
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all for notifications" ON public.notifications FOR ALL USING (true);
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
 
--- ------------------------------------------------------------------------------
--- 10. SEED DATA (12 Accounts — 3 per role, 4 Residents, Obligations & Notifications)
--- ------------------------------------------------------------------------------
-INSERT INTO hr_domain.staff_profiles (id, full_name, role, shift_status, competencies, phone_number) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01', 'Suster Dewi Pertiwi, Amd.Kep', 'caregiver', 'on_duty', ARRAY['insulin_injection', 'vital_signs', 'wound_dressing', 'medication_admin'], '+6281234567890'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a02', 'Perawat Budi Santoso, S.Kep', 'caregiver', 'on_duty', ARRAY['dementia_care', 'stroke_rehab', 'vital_signs', 'fall_prevention'], '+6281987654321'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a03', 'Suster Siti Rahma, Amd.Kep', 'caregiver', 'handover_pending', ARRAY['geriatric_nutrition', 'vital_signs', 'hygiene_care', 'wound_dressing'], '+6281345678901'),
-
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a04', 'Ns. Ratna Sari, M.Kep (Supervisor)', 'supervisor', 'on_duty', ARRAY['insulin_injection', 'dementia_care', 'clinical_supervision', 'triage', 'emergency_response'], '+628111222333'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a05', 'dr. Hendra Pratama, Sp.PD', 'supervisor', 'on_duty', ARRAY['internal_medicine', 'clinical_supervision', 'prescription_audit', 'triage'], '+628112233445'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a06', 'Ns. Ahmad Fauzi, M.Kep', 'supervisor', 'off_duty', ARRAY['clinical_supervision', 'quality_control', 'triage', 'palliative_care'], '+628113344556'),
-
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a07', 'Rina Wijaya (Wali Ibu Aminah)', 'family', 'on_duty', ARRAY['family_representative'], '+628177889900'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a08', 'Bambang Susanto Jr. (Wali Pak Bambang)', 'family', 'on_duty', ARRAY['family_representative'], '+628177889911'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a09', 'Dewi Rahayu (Wali Ibu Sri Rahayu)', 'family', 'on_duty', ARRAY['family_representative'], '+628177889922'),
-
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a10', 'Budi Santoso (Admin HR / Panti)', 'admin_hr', 'on_duty', ARRAY['hr_management', 'audit_compliance', 'shift_scheduling', 'staff_onboarding'], '+628155667788'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Maya Indah, S.Psi (HR Specialist)', 'admin_hr', 'on_duty', ARRAY['competency_mapping', 'hr_analytics', 'shift_scheduling'], '+628155667799'),
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', 'Rizal Arifin, SE (Facility Admin)', 'admin_hr', 'on_duty', ARRAY['facility_compliance', 'audit_logging', 'inventory_management'], '+628155667700')
-ON CONFLICT (id) DO NOTHING;
-
+-- No demo records are inserted. Real user profiles are created by Supabase Auth.

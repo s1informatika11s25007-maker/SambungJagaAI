@@ -35,66 +35,16 @@ export async function runHandoverAnalysis(contract, outgoingStaff, incomingStaff
     console.warn("AI Handover Contract Edge Function fallback triggered:", err);
   }
 
-  // Deterministic Local Clinical Evaluation based on real obligations and staff
-  const criticalObs = (openObligations || []).filter(o => o.priority === 'critical' || o.priority === 'emergency');
-  const importantObs = (openObligations || []).filter(o => o.priority === 'important');
-
+  // The local fallback is only a factual workload summary, never a clinical validation.
+  const criticalObs = (openObligations || []).filter((item) => ['critical', 'emergency'].includes(item.priority));
+  const importantObs = (openObligations || []).filter((item) => item.priority === 'important');
   const fallbackResult = {
-    summaryAnalysis: openObligations.length > 0
-      ? `Serah terima ${contract?.shift_name || 'shift aktif'} mengalihkan ${openObligations.length} kewajiban perawatan terverifikasi (${criticalObs.length} kritis, ${importantObs.length} urgent). Seluruh instruksi medis terpeta tanpa celah.`
-      : `Kontrak handover ${contract?.shift_name || 'shift aktif'} tervalidasi. Bebas kewajiban tertunda (Zero Care Debt).`,
-    riskLevel: criticalObs.length > 0 ? "MEDIUM" : "LOW",
-    criticalNotes: criticalObs.length > 0
-      ? criticalObs.map(c => `Pengawasan khusus: ${c.title}`)
-      : ["Parameter tanda vital dan jadwal obat shift berikutnya dalam batas aman."],
-    isValidated: true
+    summaryAnalysis: `Ringkasan lokal mencatat ${openObligations.length} tugas terbuka (${criticalObs.length} prioritas tinggi, ${importantObs.length} penting). Kesesuaian klinis dan kelengkapan serah terima belum diverifikasi oleh layanan analisis.`,
+    riskLevel: 'UNASSESSED',
+    criticalNotes: criticalObs.map((item) => `Perlu ditinjau oleh petugas berwenang: ${item.title}`),
+    isValidated: false,
+    source: 'local_workload_summary'
   };
-
   handoverCache.set(cacheKey, fallbackResult);
   return fallbackResult;
-}
-
-/**
- * Automates 100% of the creation of a Handover Contract from real active obligations and on-duty caregiver staff.
- */
-export function synthesizeAutoHandoverContract(obligations = [], staff = [], currentUser = null) {
-  const openObligations = obligations.filter(o => o.status === 'open' || o.status === 'in_progress');
-  const caregivers = staff.filter(s => s.role === 'caregiver');
-
-  const outgoing = caregivers[0] || { id: 'staff-outgoing-def', full_name: currentUser?.full_name || 'Siti Rahma' };
-  const incoming = caregivers[1] || caregivers[0] || { id: 'staff-incoming-def', full_name: 'Ns. Ahmad Fauzi' };
-
-  const now = new Date();
-  const shiftName = `Serah Terima Shift Pagi (07:00-14:00) ➔ Shift Siang (14:00-21:00) [${now.toLocaleDateString('id-ID')}]`;
-
-  const openSummary = openObligations.slice(0, 4).map(o => ({
-    id: o.id,
-    title: o.title,
-    priority: o.priority,
-    grade: o.required_evidence_grade || 'E1',
-    resident_name: o.resident_name || 'Penghuni'
-  }));
-
-  if (openSummary.length === 0) {
-    openSummary.push({
-      id: 'ob-synth-1',
-      title: 'Pemantauan Vital Sign & Tensi Harian - Ibu Aminah',
-      priority: 'important',
-      grade: 'E1',
-      resident_name: 'Ibu Aminah'
-    });
-  }
-
-  return {
-    id: `ho-auto-${Date.now()}`,
-    shift_name: shiftName,
-    outgoing_staff_id: outgoing.id,
-    incoming_staff_id: incoming.id,
-    contract_status: 'pending_receiver',
-    outgoing_signed_at: new Date(Date.now() - 10 * 60000).toISOString(),
-    incoming_signed_at: null,
-    competency_gaps_identified: [],
-    hash_signature: `sha256-handover-auto-${Math.random().toString(36).substring(2, 10)}`,
-    open_obligations_summary: openSummary
-  };
 }

@@ -9,8 +9,7 @@ import {
   Download,
   Clock,
   ShieldAlert,
-  Activity,
-  Bot
+  Activity
 } from 'lucide-react';
 import Badge from '../common/Badge';
 import { runHandoverAnalysis } from '../../services/handover/handoverContractService';
@@ -25,13 +24,18 @@ export default function HandoverContractCard({
   obligations = []
 }) {
   const isConfirmed = contract.contract_status === 'confirmed';
+  const signerRole = !contract.outgoing_signed_at && currentUser?.id === contract.outgoing_staff_id
+    ? 'outgoing'
+    : contract.outgoing_signed_at && !contract.incoming_signed_at && currentUser?.id === contract.incoming_staff_id ? 'incoming' : null;
+  const [isSigning, setIsSigning] = useState(false);
+  const [signMessage, setSignMessage] = useState('');
 
   // Resolve staff names from IDs or defaults
   const outgoingStaff = staff?.find(s => s.id === contract.outgoing_staff_id);
   const incomingStaff = staff?.find(s => s.id === contract.incoming_staff_id);
 
-  const outgoingName = outgoingStaff ? outgoingStaff.full_name : 'Siti Rahma (Caregiver Pagi)';
-  const incomingName = incomingStaff ? incomingStaff.full_name : 'Ns. Ahmad Fauzi (Caregiver Siang)';
+  const outgoingName = outgoingStaff ? outgoingStaff.full_name : 'Profil pengirim tidak tersedia';
+  const incomingName = incomingStaff ? incomingStaff.full_name : 'Profil penerima tidak tersedia';
 
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
@@ -59,6 +63,15 @@ export default function HandoverContractCard({
     return () => { isMounted = false; };
   }, [contract.id, contract.contract_status]);
 
+  const handleSign = async () => {
+    if (!signerRole || isSigning) return;
+    setIsSigning(true);
+    setSignMessage('');
+    const result = await onSignContract?.({ contractId: contract.id, signerRole, signerName: currentUser?.full_name || currentUser?.name, signerId: currentUser?.id });
+    setIsSigning(false);
+    setSignMessage(result?.success ? result.message : (result?.error || 'Tanda tangan belum tercatat.'));
+  };
+
   const handleSpeakSummary = () => {
     if (aiAnalysis?.summaryAnalysis) {
       speakTextNative(`Ringkasan Serah Terima Shift: ${aiAnalysis.summaryAnalysis}`);
@@ -78,9 +91,10 @@ export default function HandoverContractCard({
       status: contract.contract_status,
       clinical_analysis: aiAnalysis,
       obligations_transferred: contractObligations,
-      verified_by: currentUser?.full_name || 'Supervisor Klinis',
+      exported_by: currentUser?.full_name || currentUser?.name || 'Pengguna terautentikasi',
       exported_at: new Date().toISOString(),
-      integrity_hash: contract.hash_signature || `sha256-care-evidence-pack-${Date.now()}`
+      integrity_digest: /^[a-f0-9]{64}$/i.test(contract.hash_signature || '') ? contract.hash_signature : null,
+      integrity_status: /^[a-f0-9]{64}$/i.test(contract.hash_signature || '') ? 'database_digest_available' : 'not_available'
     };
 
     const res = await exportCareEvidencePackNative(
@@ -106,7 +120,7 @@ export default function HandoverContractCard({
           </div>
           <div>
             <h3 className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight">{contract.shift_name}</h3>
-            <p className="text-[10px] text-slate-500 font-mono">ID: {contract.id} • Sign: {contract.hash_signature?.substring(0, 16)}...</p>
+            <p className="text-[10px] text-slate-500 font-mono">ID: {contract.id} • SHA-256: {/^[a-f0-9]{64}$/i.test(contract.hash_signature || '') ? `${contract.hash_signature.slice(0, 16)}…` : 'belum tersedia'}</p>
           </div>
         </div>
 
@@ -140,34 +154,34 @@ export default function HandoverContractCard({
       {/* Two-Sided Care Continuity Diagram */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center bg-slate-50/90 p-3.5 rounded-xl border border-slate-200">
         <div className="space-y-0.5">
-          <span className="text-[10px] text-slate-500 uppercase font-extrabold tracking-wider block">Pengasuh Penyerah (Giver)</span>
+          <span className="text-[10px] text-slate-500 uppercase font-extrabold tracking-wider block">Pengirim</span>
           <p className="text-xs font-bold text-slate-900">{outgoingName}</p>
-          <span className="text-[10px] text-emerald-700 font-medium flex items-center pt-0.5">
-            <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600 shrink-0" />
-            Ditandatangani: {contract.outgoing_signed_at ? new Date(contract.outgoing_signed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '14:00 WIB'}
+          <span className={`text-[10px] font-medium flex items-center pt-0.5 ${contract.outgoing_signed_at ? 'text-emerald-700' : 'text-amber-700'}`}>
+            <CheckCircle2 className="w-3 h-3 mr-1 shrink-0" />
+            {contract.outgoing_signed_at ? `Ditandatangani: ${new Date(contract.outgoing_signed_at).toLocaleString('id-ID')}` : 'Menunggu tanda tangan pengirim'}
           </span>
         </div>
 
         <div className="flex flex-col items-center justify-center text-slate-400 my-1 sm:my-0">
           <div className="hidden sm:flex items-center space-x-1 px-2 py-0.5 bg-sky-100 text-sky-800 rounded-full border border-sky-200 text-[10px] font-extrabold">
-            <Bot className="w-3 h-3 text-sky-600" />
-            <span>Kernel Check</span>
+            <FileCheck className="w-3 h-3 text-sky-600" />
+            <span>Ringkasan tugas</span>
           </div>
           <ArrowRight className="w-4 h-4 text-sky-600 hidden sm:block mt-1" />
         </div>
 
         <div className="space-y-0.5">
-          <span className="text-[10px] text-slate-500 uppercase font-extrabold tracking-wider block">Pengasuh Penerima (Receiver)</span>
+          <span className="text-[10px] text-slate-500 uppercase font-extrabold tracking-wider block">Penerima</span>
           <p className="text-xs font-bold text-slate-900">{incomingName}</p>
           {isConfirmed ? (
             <span className="text-[10px] text-emerald-700 font-medium flex items-center pt-0.5">
               <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600 shrink-0" />
-              Telah Diverifikasi: {contract.incoming_signed_at ? new Date(contract.incoming_signed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '14:02 WIB'}
+              Ditandatangani: {new Date(contract.incoming_signed_at).toLocaleString('id-ID')}
             </span>
           ) : (
             <span className="text-[10px] text-amber-800 font-semibold flex items-center pt-0.5">
               <ShieldAlert className="w-3 h-3 mr-1 text-amber-600 shrink-0" />
-              Siap Otorisasi Supervisor / Penerima
+              {contract.outgoing_signed_at ? 'Menunggu tanda tangan penerima' : 'Menunggu pengirim menandatangani'}
             </span>
           )}
         </div>
@@ -179,12 +193,12 @@ export default function HandoverContractCard({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 font-bold text-xs text-sky-300">
               <ShieldCheck className="w-4 h-4 text-sky-400" />
-              <span>Analisis Agent Otorisasi Shift Klinis</span>
+              <span>{aiAnalysis.source === 'local_workload_summary' ? 'Ringkasan tugas lokal' : 'Analisis layanan serah terima'}</span>
             </div>
             <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase font-mono ${
-              aiAnalysis.riskLevel === 'HIGH' ? 'bg-rose-500 text-white' : aiAnalysis.riskLevel === 'MEDIUM' ? 'bg-amber-500 text-slate-950' : 'bg-emerald-500 text-slate-950'
+              aiAnalysis.riskLevel === 'HIGH' ? 'bg-rose-500 text-white' : aiAnalysis.riskLevel === 'MEDIUM' ? 'bg-amber-500 text-slate-950' : aiAnalysis.riskLevel === 'UNASSESSED' ? 'bg-slate-600 text-white' : 'bg-emerald-500 text-slate-950'
             }`}>
-              Risiko: {aiAnalysis.riskLevel || 'LOW'}
+              Risiko: {aiAnalysis.riskLevel || 'UNASSESSED'}
             </span>
           </div>
 
@@ -204,13 +218,13 @@ export default function HandoverContractCard({
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <h4 className="text-xs font-bold text-slate-800 tracking-tight">Kewajiban Perawatan yang Diserahterimakan ({contractObligations.length}):</h4>
-          <span className="text-[10px] text-slate-500 font-medium">Auto-Mapped dari Bitemporal Graph</span>
+          <span className="text-[10px] text-slate-500 font-medium">Diambil dari catatan tugas pada saat dibuat</span>
         </div>
 
         <div className="space-y-1.5">
           {contractObligations.length === 0 ? (
             <div className="p-2.5 bg-slate-50 text-slate-500 text-xs text-center rounded-lg border border-slate-200">
-              Tidak ada kewajiban terbuka tertunda untuk shift ini (Zero Care Debt).
+              Tidak ada tugas terbuka yang tercatat untuk pengirim pada saat draf dibuat.
             </div>
           ) : (
             contractObligations.map((ob, idx) => (
@@ -239,28 +253,20 @@ export default function HandoverContractCard({
         </div>
       </div>
 
-      {/* Action Bar (1-Click Automation for Supervisor / Receiver) */}
-      {!isConfirmed && (
-        <div className="pt-1.5 flex items-center justify-between border-t border-slate-100">
-          <p className="text-[11px] text-slate-500 font-medium">
-            Sistem telah memverifikasi kelengkapan dokumen & bukti fisik.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => onSignContract({
-              contractId: contract.id,
-              signerRole: currentUserRole === 'supervisor' ? 'incoming' : 'incoming',
-              signerName: currentUser?.full_name || currentUser?.name || 'Ns. Ratna Sari, M.Kep (Supervisor)',
-              signerId: currentUser?.id || 'staff-supervisor-01'
-            })}
-            className="bg-sky-600 hover:bg-sky-700 text-white text-xs px-4 py-2 rounded-xl font-bold shadow-sm flex items-center space-x-1.5 transition cursor-pointer"
-          >
-            <UserCheck className="w-4 h-4" />
-            <span>Otomatis Verifikasi & Otorisasi Shift Agent</span>
-          </button>
+      {/* Only the account assigned to the relevant side can sign it. */}
+      {!isConfirmed && signerRole && (
+        <div className="border-t border-slate-100 pt-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[11px] text-slate-500">Anda masuk sebagai {signerRole === 'outgoing' ? 'pengirim' : 'penerima'} yang terdaftar pada kontrak ini.</p>
+            <button type="button" onClick={handleSign} disabled={isSigning} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:opacity-50">
+              {isSigning ? <Activity className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
+              {isSigning ? 'Menyimpan tanda tangan…' : `Tandatangani sebagai ${signerRole === 'outgoing' ? 'pengirim' : 'penerima'}`}
+            </button>
+          </div>
+          {signMessage && <p role="status" className="mt-2 text-[11px] text-slate-600">{signMessage}</p>}
         </div>
       )}
+
     </div>
   );
 }

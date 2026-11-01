@@ -9,7 +9,7 @@ const promptGuardCache = new Map();
 
 /**
  * Detects prompt injection patterns in caregiver input text
- * Menggunakan Real AI Agent dari Supabase Edge Functions dengan in-memory LRU caching dan rule fallback.
+ * Menggunakan Edge Function bila tersedia; fallback lokal hanya pemeriksaan pola sederhana.
  * @param {string} text
  * @returns {Promise<{ isInjection: boolean, matchedRule?: string }>}
  */
@@ -35,7 +35,7 @@ export async function validatePromptInjection(text) {
 
   for (const pattern of injectionPatterns) {
     if (pattern.test(text)) {
-      const result = { isInjection: true, matchedRule: `ignore previous instructions / prompt injection rule matched` };
+      const result = { isInjection: true, verified: true, mode: 'local_pattern', matchedRule: 'Local pattern match' };
       promptGuardCache.set(cleanText, result);
       return result;
     }
@@ -48,8 +48,10 @@ export async function validatePromptInjection(text) {
 
     if (!error && data) {
       const result = {
-        isInjection: data.isInjection,
-        matchedRule: data.matchedRule || 'AI Detected Malicious Intent'
+        isInjection: data.isInjection === true,
+        verified: true,
+        mode: 'server_guard',
+        matchedRule: data.matchedRule || 'Server guard pattern match'
       };
       promptGuardCache.set(cleanText, result);
       return result;
@@ -58,7 +60,7 @@ export async function validatePromptInjection(text) {
     console.warn("AI Prompt Guard API Error, using rule fallback", err);
   }
 
-  const result = { isInjection: false };
+  const result = { isInjection: false, verified: false, mode: 'local_fallback' };
   promptGuardCache.set(cleanText, result);
   return result;
 }

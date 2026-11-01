@@ -1,46 +1,54 @@
 /**
- * SambungJaga AI — Retroactive Rule Replay Engine (P1 Bitemporal)
- *
- * @module services/ruleReplayService
- * @description Re-evaluates historical bitemporal data against updated rules via Supabase Edge Function with caching.
+ * Checks historical coverage for a configured replay service.
+ * A local count is never represented as a successful rule evaluation.
  */
-
 import { supabase } from '../../supabase/client/client';
 
-// In-Memory Cache for Retroactive Rule Replay
-const ruleReplayCache = new Map();
+const replayCache = new Map();
+const isValidCount = (value) => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
+  && Number.isFinite(Number(value)) && Number(value) >= 0;
 
-export async function runRuleReplayAnalysis(replayDays, obligations, ruleVersion = 'v2.1.0-clinical') {
-  const cacheKey = `${replayDays}_${ruleVersion}_${(obligations || []).length}`;
-
-  if (ruleReplayCache.has(cacheKey)) {
-    return ruleReplayCache.get(cacheKey);
-  }
+export async function runRuleReplayAnalysis(replayDays, obligations, ruleVersion = 'v1.0.0') {
+  const safeDays = Math.max(1, Math.min(Number(replayDays) || 7, 90));
+  const recordFingerprint = (obligations || []).map((item) => `${item.id}:${item.status}:${item.updated_at || item.sys_created_at || item.valid_from}`).join('|');
+  const cacheKey = `${safeDays}_${ruleVersion}_${recordFingerprint}`;
+  if (replayCache.has(cacheKey)) return replayCache.get(cacheKey);
 
   try {
     const { data, error } = await supabase.functions.invoke('ai_rule_replay', {
-      body: { replayDays, obligations, ruleVersion }
+      body: { replayDays: safeDays, obligations, ruleVersion }
     });
-
     if (!error && data) {
-      ruleReplayCache.set(cacheKey, data);
-      return data;
+      const verified = data.verified === true
+        && isValidCount(data.replayedRecords)
+        && isValidCount(data.discrepanciesFound);
+      const result = {
+        ...data,
+        verified,
+        analysis: verified
+          ? String(data.analysis || 'Replay dijalankan oleh layanan dan mengembalikan hasil terstruktur.')
+          : 'Layanan mengembalikan data yang belum cukup untuk membuktikan hasil replay. Konflik tidak dapat dinyatakan nol atau aman.'
+      };
+      replayCache.set(cacheKey, result);
+      return result;
     }
-  } catch (err) {
-    console.warn("AI Rule Replay Edge Function error", err);
+  } catch (error) {
+    console.warn('Rule replay service unavailable:', error);
   }
 
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - replayDays);
-  const replayedCount = (obligations || []).filter(o => new Date(o.sys_created_at) >= cutoffDate).length;
-
-  const fallbackResult = {
-    replayedRecords: replayedCount,
+  const cutoff = Date.now() - safeDays * 24 * 60 * 60 * 1000;
+  const recordsInWindow = (obligations || []).filter((item) => {
+    const date = new Date(item.sys_created_at || item.created_at || item.valid_from).getTime();
+    return Number.isFinite(date) && date >= cutoff;
+  }).length;
+  const result = {
+    replayedRecords: recordsInWindow,
     ruleVersion,
-    discrepanciesFound: 0,
-    analysis: `Retroactive Rule Replay selesai. Sebanyak ${replayedCount} kewajiban dari ${replayDays} hari terakhir diputar ulang tanpa ada konflik terdeteksi.`
+    discrepanciesFound: null,
+    verified: false,
+    source: 'local_record_count_only',
+    analysis: `Ditemukan ${recordsInWindow} catatan dalam rentang ${safeDays} hari. Ini hanya hitungan data lokal; mesin replay belum tersedia sehingga aturan belum dievaluasi dan konflik belum dapat disimpulkan.`
   };
-
-  ruleReplayCache.set(cacheKey, fallbackResult);
-  return fallbackResult;
+  replayCache.set(cacheKey, result);
+  return result;
 }
