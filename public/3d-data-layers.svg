@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 540" width="100%" height="100%" style="background:#020617; border-radius: 20px;">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <linearGradient id="plate0" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <linearGradient id="plate1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <linearGradient id="plate2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#047857" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <linearGradient id="plate3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#b45309" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <linearGradient id="plate4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#be123c" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <linearGradient id="plate5" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ea580c" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#c2410c" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <linearGradient id="plate6" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284c7" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0369a1" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <linearGradient id="plate7" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#64748b" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#334155" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <linearGradient id="plate8" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#be185d" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <linearGradient id="plate9" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#4338ca" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <filter id="glowEffect" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes dataBeam {
+      0% { transform: translateY(-20px); opacity: 0; }
+      20% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { transform: translateY(440px); opacity: 0; }
+    }
+
+    @keyframes floatLayer {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; filter: drop-shadow(0 0 10px #38bdf8); }
+    }
+
+    .beam-1 { animation: dataBeam 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    .beam-2 { animation: dataBeam 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite 1.2s; }
+    .layer-group { animation: floatLayer 4s ease-in-out infinite; }
+    .pulse-text { animation: pulseGlow 2.5s ease-in-out infinite; }
+  </style>
+
+  <rect width="100%" height="100%" fill="url(#bgGrad)"/>
+
+  <!-- Title Header inside Graphic -->
+  <text x="460" y="35" font-family="system-ui, sans-serif" font-weight="900" font-size="18" fill="#38bdf8" text-anchor="middle" letter-spacing="1">SAMBUNGJAGA AI — 10-LAYER DATA PROCESSING PIPELINE</text>
+  <text x="460" y="55" font-family="system-ui, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Arsitektur Pemrosesan Data Berkelanjutan Berbasis Obligation Kernel (P1-P6)</text>
+
+  <!-- 3D Stack Layer Container -->
+  <g class="layer-group" transform="translate(140, 70)">
+
+    <!-- Layer 0 -->
+    <g transform="translate(0, 0)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate0)" stroke="#60a5fa" stroke-width="1.5" filter="url(#glowEffect)"/>
+      <text x="270" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 0 · AKTOR &amp; CAPTURE (Pengasuh / Voice / PWA)</text>
+    </g>
+
+    <!-- Layer 1 -->
+    <g transform="translate(0, 40)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate1)" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="250" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 1 · INGESTI &amp; KEAMANAN (P5 Offline Hash Ledger)</text>
+    </g>
+
+    <!-- Layer 2 -->
+    <g transform="translate(0, 80)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate2)" stroke="#34d399" stroke-width="1.5"/>
+      <text x="240" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 2 · PERSEPSI &amp; EPISTEMIK (P3 Fact Ledger)</text>
+    </g>
+
+    <!-- Layer 3 (CORE HIGHLIGHT) -->
+    <g transform="translate(0, 120)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate3)" stroke="#fbbf24" stroke-width="3" filter="url(#glowEffect)"/>
+      <text x="200" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="13" fill="#ffffff" class="pulse-text">★ LAYER 3 · OBLIGATION KERNEL (P1 Bitemporal Ledger)</text>
+    </g>
+
+    <!-- Layer 4 -->
+    <g transform="translate(0, 160)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate4)" stroke="#fb7185" stroke-width="1.5"/>
+      <text x="220" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 4 · SUPERAGENT SWARM (P6 Authority Envelope)</text>
+    </g>
+
+    <!-- Layer 5 -->
+    <g transform="translate(0, 200)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate5)" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="250" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 5 · EKSEKUSI TERKONTROL (Supabase RLS DB)</text>
+    </g>
+
+    <!-- Layer 6 -->
+    <g transform="translate(0, 240)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate6)" stroke="#38bdf8" stroke-width="2"/>
+      <text x="230" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 6 · VERIFIKASI BUKTI (P2 Evidence Verifier E0-E3)</text>
+    </g>
+
+    <!-- Layer 7 -->
+    <g transform="translate(0, 280)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate7)" stroke="#94a3b8" stroke-width="2" filter="url(#glowEffect)"/>
+      <text x="220" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 7 · PLATFORM AUDIT (SHA-256 Immutable Chain)</text>
+    </g>
+
+    <!-- Layer 8 -->
+    <g transform="translate(0, 320)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate8)" stroke="#f472b6" stroke-width="1.5"/>
+      <text x="230" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 8 · ANALISIS ASINKRON (P4 Failure Simulator)</text>
+    </g>
+
+    <!-- Layer 9 -->
+    <g transform="translate(0, 360)">
+      <polygon points="120,20 520,20 420,50 20,50" fill="url(#plate9)" stroke="#818cf8" stroke-width="1.5"/>
+      <text x="220" y="38" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#ffffff">LAYER 9 · KELUARAN &amp; HANDOVER (Two-Sided Contract)</text>
+    </g>
+
+    <!-- Vertical 3D Data Flow Pulse Beams -->
+    <line x1="270" y1="10" x2="270" y2="410" stroke="#00f2fe" stroke-width="2" stroke-dasharray="8 6" opacity="0.4"/>
+    <circle cx="270" cy="20" r="7" fill="#00f2fe" class="beam-1" filter="url(#glowEffect)"/>
+
+    <line x1="400" y1="10" x2="400" y2="410" stroke="#10b981" stroke-width="2" stroke-dasharray="8 6" opacity="0.4"/>
+    <circle cx="400" cy="20" r="7" fill="#10b981" class="beam-2" filter="url(#glowEffect)"/>
+
+  </g>
+</svg>

@@ -1,8 +1,13 @@
 <div align="center">
 
   <br/>
-  
-  <img src="public/mascot.png" alt="SambungJaga AI 3D Robot Mascot" width="200" style="filter: drop-shadow(0 15px 25px rgba(14, 165, 233, 0.45)); transform: perspective(1000px) rotateY(-5deg); transition: all 0.5s ease;" />
+
+  <!-- 3D MOVING ANIMATION BANNER -->
+  <p align="center">
+    <a href="https://github.com/s1informatika11s25007-maker/SambungJagaAI">
+      <img src="public/3d-hero-animation.svg" alt="SambungJaga AI 3D Holographic Robot Mascot & Core Kernel Animation" width="100%" style="max-width: 860px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 242, 254, 0.25);" />
+    </a>
+  </p>
 
   # 🛡️ SambungJaga AI — Care Continuity Workspace
   ### *Evidence-Verified Care Continuity Powered by Obligation Kernel & Autonomous Superagent Swarm*
@@ -134,6 +139,11 @@ flowchart TD
 ## 🏛️ Detail 10 Layer Pemrosesan Data & 6 Inovasi Kernel
 
 Sistem SambungJaga AI dirancang secara holistik melalui **10 Pemrosesan Layer Data** dan **6 Inovasi Kernel Utama (P1–P6)**:
+
+<!-- ANIMATED 3D ISOMETRIC STACK GRAPHIC -->
+<p align="center">
+  <img src="public/3d-data-layers.svg" alt="SambungJaga AI 10-Layer Data Processing Pipeline Animated Graphic" width="100%" style="max-width: 900px; border-radius: 16px; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);" />
+</p>
 
 <details open>
 <summary><b>🔹 Layer 0 — Aktor & Antarmuka Aplikasi</b></summary>
@@ -361,7 +371,7 @@ git status
 git add .
 
 # 3. Buat commit terstruktur
-git commit -m "docs: update README.md dengan Mermaid flowchart 100% valid, visual 3D mascot, dan detail 10 layer pemrosesan data"
+git commit -m "docs: add 3D moving SVG animations & update README.md"
 
 # 4. Push ke repositori GitHub menggunakan token dari .env
 git push https://<YOUR_GITHUB_TOKEN>@github.com/s1informatika11s25007-maker/SambungJagaAI.git main
