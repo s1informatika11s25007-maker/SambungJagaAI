@@ -34,7 +34,6 @@
 ## ⚡ Pintasan Navigasi
 
 - [💡 Apa itu SambungJaga AI?](#-apa-itu-sambungjaga-ai)
-- [🤖 Cara Kerja Sederhana (4 Langkah)](#-cara-kerja-sederhana-4-langkah)
 - [👥 Fitur Utama Berdasarkan Peran](#-fitur-utama-berdasarkan-peran)
 - [🏛️ Spesifikasi Teknis 10 Layer (Untuk Pengembang)](#️-spesifikasi-teknis-10-layer-untuk-pengembang)
 - [🤖 Matriks Model AI](#-matriks-model-ai)
@@ -45,22 +44,6 @@
 ## 💡 Apa itu SambungJaga AI?
 
 Di fasilitas perawatan lansia, informasi harian mudah tercecer ketika petugas berganti shift. **SambungJaga AI** hadir sebagai asisten pintar pendamping yang memastikan seluruh kebutuhan perawatan lansia (seperti pemberian obat, ukur tekanan darah, makan, dan mandikan) tersusun rapi tanpa ada tugas yang terlewat atau terlupakan (*zero care debt*).
-
----
-
-## 🤖 Cara Kerja Sederhana (4 Langkah)
-
-Asisten robot AI SambungJaga mendampingi tim perawatan melalui 4 langkah mudah:
-
-<!-- ANIMATED ROBOT ASSISTANT WORKFLOW GRAPHIC -->
-<p align="center">
-  <img src="public/robot-assistant-anim.svg" alt="SambungJaga AI Robot Assistant Workflow Animation" width="100%" style="max-width: 900px; border-radius: 18px; box-shadow: 0 15px 35px rgba(0, 242, 254, 0.2);" />
-</p>
-
-1. **🎙️ Tangkap Laporan**: Pengasuh cukup berbicara lewat suara (*voice note*), mengetik pesan, atau mengambil foto. AI akan membaca laporan tersebut secara otomatis.
-2. **📋 Susun Tugas**: Sistem mengubah laporan menjadi jadwal tugas yang terorganisir lengkap dengan tingkat prioritas lansia.
-3. **📷 Verifikasi Bukti**: Tugas yang selesai dilengkapi foto bukti atau konfirmasi QR lokasi sehingga kualitas perawatan terjamin.
-4. **🤝 Serah Terima Shift**: Pengasuh shift berikutnya langsung mendapatkan ringkasan operan tugas tanpa takut ada informasi yang hilang.
 
 ---
 
