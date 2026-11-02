@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="100%" height="100%" style="background:#020617; border-radius: 20px;">
+  <defs>
+    <!-- Dark Space Gradient -->
+    <linearGradient id="bgGrad4D" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="50%" stop-color="#090d16"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+
+    <!-- Glowing Line Gradients -->
+    <linearGradient id="cyanLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+
+    <linearGradient id="emeraldLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <linearGradient id="roseLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fb7185"/>
+      <stop offset="100%" stop-color="#e11d48"/>
+    </linearGradient>
+
+    <radialGradient id="coreLight" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Glow Filter -->
+    <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    /* 4D Temporal Data Flow Animations */
+    @keyframes pulseStep1 {
+      0% { offset-distance: 0%; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { offset-distance: 100%; opacity: 0; }
+    }
+
+    @keyframes rotate3DCore {
+      0% { transform: rotateY(0deg) rotateX(15deg); }
+      100% { transform: rotateY(360deg) rotateX(15deg); }
+    }
+
+    @keyframes floatCard {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes statusBlink {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; filter: drop-shadow(0 0 8px #38bdf8); }
+    }
+
+    @keyframes beamFlow {
+      0% { stroke-dashoffset: 200; }
+      100% { stroke-dashoffset: 0; }
+    }
+
+    .bg-dark { fill: url(#bgGrad4D); }
+    .card-float { animation: floatCard 4s ease-in-out infinite; }
+    .status-active { animation: statusBlink 2s ease-in-out infinite; }
+    .dash-line { stroke-dasharray: 12 8; animation: beamFlow 3s linear infinite; }
+  </style>
+
+  <rect width="100%" height="100%" class="bg-dark"/>
+
+  <!-- Cyber Grid Background Pattern -->
+  <g stroke="#1e293b" stroke-width="0.8" opacity="0.4">
+    <path d="M 0,70 L 960,70 M 0,140 L 960,140 M 0,210 L 960,210 M 0,280 L 960,280 M 0,350 L 960,350 M 0,420 L 960,420 M 0,490 L 960,490" />
+    <path d="M 120,0 L 120,560 M 240,0 L 240,560 M 360,0 L 360,560 M 480,0 L 480,560 M 600,0 L 600,560 M 720,0 L 720,560 M 840,0 L 840,560" />
+  </g>
+
+  <!-- Header Banner Title -->
+  <text x="480" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#38bdf8" text-anchor="middle" letter-spacing="1">ALUR DATA OPERASIONAL 4D (REAL-TIME CARE CONTINUITY LIFECYCLE)</text>
+  <text x="480" y="56" font-family="system-ui, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Dari Laporan Suara Pengasuh -> Obligation Kernel -> Verification -> Immutable Audit Trail</text>
+
+  <!-- Pipeline Main Flow Path -->
+  <!-- Step 1: Input Laporan -->
+  <g class="card-float" transform="translate(40, 90)">
+    <rect width="240" height="90" rx="16" fill="#0f172a" stroke="#38bdf8" stroke-width="2" filter="url(#neonGlow)"/>
+    <rect x="15" y="15" width="36" height="36" rx="10" fill="#0284c7"/>
+    <text x="33" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#ffffff" text-anchor="middle">1</text>
+    <text x="62" y="30" font-family="system-ui, sans-serif" font-weight="800" font-size="13" fill="#38bdf8">Ingesti &amp; Capture</text>
+    <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" fill="#cbd5e1">Voice STT / Teks / Foto</text>
+    <text x="15" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">P5 Offline Hash Anti-Backdate</text>
+  </g>
+
+  <!-- Flow Connector 1 to 2 -->
+  <path d="M 280,135 L 340,135" stroke="#38bdf8" stroke-width="3" fill="none" class="dash-line"/>
+
+  <!-- Step 2: Epistemic Fact Ledger (P3) -->
+  <g class="card-float" transform="translate(340, 90)" style="animation-delay: 0.5s;">
+    <rect width="260" height="90" rx="16" fill="#0f172a" stroke="#10b981" stroke-width="2" filter="url(#neonGlow)"/>
+    <rect x="15" y="15" width="36" height="36" rx="10" fill="#059669"/>
+    <text x="33" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#ffffff" text-anchor="middle">2</text>
+    <text x="62" y="30" font-family="system-ui, sans-serif" font-weight="800" font-size="13" fill="#34d399">Epistemic Fact (P3)</text>
+    <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" fill="#cbd5e1">Ekstraksi Fakta Terstruktur</text>
+    <text x="15" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">Observed / Reported / Inferred</text>
+  </g>
+
+  <!-- Flow Connector 2 to 3 -->
+  <path d="M 600,135 L 660,135" stroke="#10b981" stroke-width="3" fill="none" class="dash-line"/>
+
+  <!-- Step 3: Bitemporal Obligation Kernel (P1) -->
+  <g class="card-float" transform="translate(660, 90)" style="animation-delay: 1s;">
+    <rect width="260" height="90" rx="16" fill="#0f172a" stroke="#fbbf24" stroke-width="2.5" filter="url(#neonGlow)"/>
+    <rect x="15" y="15" width="36" height="36" rx="10" fill="#d97706"/>
+    <text x="33" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#ffffff" text-anchor="middle">3</text>
+    <text x="62" y="30" font-family="system-ui, sans-serif" font-weight="800" font-size="13" fill="#fbbf24">Obligation Kernel (P1)</text>
+    <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" fill="#cbd5e1">Bitemporal Ledger &amp; Graph</text>
+    <text x="15" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">Valid Time vs Transaction Time</text>
+  </g>
+
+  <!-- Connector Downwards Step 3 to Step 4 -->
+  <path d="M 790,180 L 790,260 L 730,260" stroke="#fbbf24" stroke-width="3" fill="none" class="dash-line"/>
+
+  <!-- Step 4: Superagent Orchestration & Authority Envelope (P6) -->
+  <g class="card-float" transform="translate(450, 215)" style="animation-delay: 1.5s;">
+    <rect width="280" height="90" rx="16" fill="#0f172a" stroke="#fb7185" stroke-width="2.5" filter="url(#neonGlow)"/>
+    <rect x="15" y="15" width="36" height="36" rx="10" fill="#be123c"/>
+    <text x="33" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#ffffff" text-anchor="middle">4</text>
+    <text x="62" y="30" font-family="system-ui, sans-serif" font-weight="800" font-size="13" fill="#fb7185">Superagent Swarm (P6)</text>
+    <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" fill="#cbd5e1">Authority Envelope (A0–A3)</text>
+    <text x="15" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">Otorisasi Agen &amp; Gate Medis</text>
+  </g>
+
+  <!-- Connector Step 4 to Step 5 -->
+  <path d="M 450,260 L 370,260" stroke="#fb7185" stroke-width="3" fill="none" class="dash-line"/>
+
+  <!-- Step 5: Controlled Execution (Supabase DB RLS) -->
+  <g class="card-float" transform="translate(90, 215)" style="animation-delay: 2s;">
+    <rect width="280" height="90" rx="16" fill="#0f172a" stroke="#ea580c" stroke-width="2" filter="url(#neonGlow)"/>
+    <rect x="15" y="15" width="36" height="36" rx="10" fill="#c2410c"/>
+    <text x="33" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#ffffff" text-anchor="middle">5</text>
+    <text x="62" y="30" font-family="system-ui, sans-serif" font-weight="800" font-size="13" fill="#fb923c">Eksekusi Terkontrol</text>
+    <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" fill="#cbd5e1">Supabase DB &amp; WA Notif</text>
+    <text x="15" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">Row-Level Security Enforcement</text>
+  </g>
+
+  <!-- Connector Downwards Step 5 to Step 6 -->
+  <path d="M 180,305 L 180,380 L 240,380" stroke="#ea580c" stroke-width="3" fill="none" class="dash-line"/>
+
+  <!-- Step 6: Evidence Verification (P2) -->
+  <g class="card-float" transform="translate(240, 335)" style="animation-delay: 2.5s;">
+    <rect width="280" height="90" rx="16" fill="#0f172a" stroke="#38bdf8" stroke-width="2" filter="url(#neonGlow)"/>
+    <rect x="15" y="15" width="36" height="36" rx="10" fill="#0284c7"/>
+    <text x="33" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#ffffff" text-anchor="middle">6</text>
+    <text x="62" y="30" font-family="system-ui, sans-serif" font-weight="800" font-size="13" fill="#38bdf8">Verifikasi Bukti (P2)</text>
+    <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" fill="#cbd5e1">Evidence Grade (E0–E3)</text>
+    <text x="15" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">Foto Hash SHA-256 / Dual Signoff</text>
+  </g>
+
+  <!-- Connector Step 6 to Step 7 -->
+  <path d="M 520,380 L 590,380" stroke="#38bdf8" stroke-width="3" fill="none" class="dash-line"/>
+
+  <!-- Step 7: Append-Only Immutable Audit Trail -->
+  <g class="card-float" transform="translate(590, 335)" style="animation-delay: 3s;">
+    <rect width="330" height="90" rx="16" fill="#0f172a" stroke="#a855f7" stroke-width="2.5" filter="url(#neonGlow)"/>
+    <rect x="15" y="15" width="36" height="36" rx="10" fill="#7e22ce"/>
+    <text x="33" y="38" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#ffffff" text-anchor="middle">7</text>
+    <text x="62" y="30" font-family="system-ui, sans-serif" font-weight="800" font-size="13" fill="#c084fc">Immutable Audit Trail</text>
+    <text x="62" y="48" font-family="system-ui, sans-serif" font-size="11" fill="#cbd5e1">Append-Only SHA-256 Chain</text>
+    <text x="15" y="75" font-family="system-ui, sans-serif" font-size="10" fill="#64748b">Terbukti Hukum &amp; Tak Dapat Diubah</text>
+  </g>
+
+  <!-- Bottom 4D Time & Status Bar -->
+  <rect x="40" y="470" width="880" height="55" rx="14" fill="#090d16" stroke="#334155" stroke-width="1.5"/>
+  <circle cx="70" cy="497" r="8" fill="#10b981" class="status-active"/>
+  <text x="90" y="502" font-family="system-ui, sans-serif" font-weight="800" font-size="12" fill="#38bdf8">REALTIME STATUS:</text>
+  <text x="210" y="502" font-family="system-ui, sans-serif" font-size="12" fill="#e2e8f0">Semua Laporan Terlacak Bitemporal • Zero Care Debt Enforcement • 100% Audit Readiness</text>
+</svg>

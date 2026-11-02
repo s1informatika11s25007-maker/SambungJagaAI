@@ -2,10 +2,10 @@
 
   <br/>
 
-  <!-- 3D MOVING ANIMATION BANNER -->
+  <!-- 3D HERO ANIMATION BANNER -->
   <p align="center">
     <a href="https://github.com/s1informatika11s25007-maker/SambungJagaAI">
-      <img src="public/3d-hero-animation.svg" alt="SambungJaga AI 3D Holographic Robot Mascot & Core Kernel Animation" width="100%" style="max-width: 860px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 242, 254, 0.25);" />
+      <img src="public/3d-hero-animation.svg" alt="SambungJaga AI 3D Holographic Robot Mascot & Core Kernel Animation" width="100%" style="max-width: 880px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 242, 254, 0.25);" />
     </a>
   </p>
 
@@ -22,7 +22,7 @@
   </p>
 
   <p align="center">
-    <b>SambungJaga AI</b> adalah sistem manajemen keberlanjutan perawatan (<i>Care Continuity Workspace</i>) generasi baru untuk panti wreda dan fasilitas perawatan berjangka panjang. Menggabungkan <b>Obligation Kernel Bitemporal</b>, <b>Multi-Agent Swarm Orchestration</b>, dan <b>Verifikasi Bukti Multi-Tingkat (E0–E3)</b> untuk memastikan tidak ada tugas perawatan pasien yang terlewat, dipalsukan, atau mengalami <i>care debt</i>.
+    <b>SambungJaga AI</b> adalah sistem keberlanjutan perawatan (<i>Care Continuity Workspace</i>) untuk panti wreda dan fasilitas lansia. Menggabungkan <b>Obligation Kernel Bitemporal (P1)</b>, <b>Multi-Agent Swarm Orchestration (P6)</b>, dan <b>Verifikasi Bukti Multi-Tingkat (E0–E3)</b> untuk menjamin zero <i>care debt</i> dan akuntabilitas penuh.
   </p>
 
   <br/>
@@ -33,18 +33,25 @@
 
 ## ⚡ Pintasan Navigasi (Quick Navigation)
 
-- [🎨 Visualisasi Arsitektur & Diagram Data](#-visualisasi-arsitektur--diagram-data)
+- [🎬 Visualisasi Alur Data 4D Bergerak](#-visualisasi-alur-data-4d-bergerak)
 - [🏛️ Detail 10 Layer Pemrosesan Data & 6 Inovasi Kernel](#️-detail-10-layer-pemrosesan-data--6-inovasi-kernel)
-- [🌟 Fitur-Fitur Interaktif & Utama](#-fitur-fitur-interaktif--utama)
+- [🌟 Keunggulan Utama & Fitur Sistem](#-keunggulan-utama--fitur-sistem)
 - [🤖 Matriks Model AI & Infrastruktur](#-matriks-model-ai--infrastruktur)
-- [🚀 Cara Menjalankan & Deployment](#-cara-menjalankan--deployment)
+- [🚀 Cara Menjalankan & Testing](#-cara-menjalankan--testing)
 - [📤 Panduan Push ke GitHub Repository](#-panduan-push-ke-github-repository)
 
 ---
 
-## 🎨 Visualisasi Arsitektur & Diagram Data
+## 🎬 Visualisasi Alur Data 4D Bergerak
 
-Sistem SambungJaga AI beroperasi melalui jaringan pemrosesan data berlapis yang menghubungkan laporan pengasuh di lapangan hingga audit transaksional tak tertempa (*immutable audit trail*).
+Setiap laporan perawatan dari pengasuh diproses melalui rantai pemrosesan data 4D yang mengalir dari ingesti suara hingga penyimpanan *audit trail* tak tertempa (*immutable audit trail*).
+
+<!-- ANIMATED 4D DATA FLOW PIPELINE GRAPHIC -->
+<p align="center">
+  <img src="public/4d-data-flow-animation.svg" alt="SambungJaga AI 4D Operational Data Flow Lifecycle Animation" width="100%" style="max-width: 940px; border-radius: 18px; box-shadow: 0 15px 35px rgba(0, 242, 254, 0.2);" />
+</p>
+
+### 📐 Diagram Alur Komponen (Mermaid Flowchart)
 
 ```mermaid
 flowchart TD
@@ -138,7 +145,7 @@ flowchart TD
 
 ## 🏛️ Detail 10 Layer Pemrosesan Data & 6 Inovasi Kernel
 
-Sistem SambungJaga AI dirancang secara holistik melalui **10 Pemrosesan Layer Data** dan **6 Inovasi Kernel Utama (P1–P6)**:
+Sistem SambungJaga AI mengorganisasikan aliran data dari hulu ke hilir secara terstruktur melalui **10 Pemrosesan Layer Data** dan **6 Inovasi Kernel Utama (P1–P6)**:
 
 <!-- ANIMATED 3D ISOMETRIC STACK GRAPHIC -->
 <p align="center">
@@ -149,130 +156,129 @@ Sistem SambungJaga AI dirancang secara holistik melalui **10 Pemrosesan Layer Da
 <summary><b>🔹 Layer 0 — Aktor & Antarmuka Aplikasi</b></summary>
 <br/>
 
-- **Fungsi**: Titik masuk utama seluruh aktor di fasilitas perawatan (Pengasuh, Supervisor, Keluarga, Admin HR).
-- **Komponen**: Application UI (React 18), Mobile PWA dengan *Offline-First Capabilities*, Voice Speech Input (Whisper V3), dan Kamera Bukti.
-- **Keluaran**: Payload mentah (audio, teks, foto) dan metadata perangkat.
+- **Input**: Perintah suara (Whisper V3), teks, foto bukti, dan metadata perangkat.
+- **Fungsi**: Titik masuk utama seluruh pengguna (Pengasuh, Supervisor, Keluarga, Admin HR) melalui Mobile PWA *Offline-First*.
+- **Output**: Payload mentah bertanda atestasi lokal.
 </details>
 
 <details open>
 <summary><b>⚡ Layer 1 — Akses, Ingesti & Keamanan (P5 Offline Hash Ledger)</b></summary>
 <br/>
 
-- **Fungsi**: Memverifikasi identitas pengguna (RBAC), memfilter ancaman *prompt injection*, dan menjaga integritas waktu saat perangkat offline.
-- **Inovasi Kernel**: **P5 — Offline Hash-Chain Ledger**. Menggunakan atestasi perangkat lokal untuk mencatat urutan kejadian (*anti-backdate*) ketika koneksi internet terputus.
-- **Komponen**: *Identity Gateway*, *Prompt Guard 2 (Meta Llama 22M)*, *PII Minimization Engine*, dan *Durable Queue* dengan idempotency key.
+- **Input**: Payload mentah dari Layer 0.
+- **Fungsi**: Memverifikasi identitas pengguna (RBAC), memfilter ancaman *prompt injection* (Meta Llama 22M), dan meminimalkan PII.
+- **Inovasi Kernel**: **P5 — Offline Hash-Chain Ledger**. Mengunci stempel waktu lokal (*anti-backdate*) saat internet terputus.
+- **Output**: Payload tersterilisasi dengan idempotency key.
 </details>
 
 <details open>
 <summary><b>🧠 Layer 2 — Persepsi & Pengetahuan (P3 Epistemic Fact Ledger)</b></summary>
 <br/>
 
-- **Fungsi**: Mengubah teks/suara informal dari pengasuh menjadi fakta terstruktur yang valid.
-- **Inovasi Kernel**: **P3 — Epistemic Fact Ledger**. Membedakan fakta berdasarkan derajat kepastian: *Observed* (Diamati), *Reported* (Dilaporkan), *Inferred* (Disimpulkan), *Contradicted* (Dikontradiksi), dan *Stale* (Basi).
-- **Komponen**: *Rule & Policy Library* ber-versi, *Resident Context & Provenance Engine*, serta *Minimal-Question Clarification Engine*.
+- **Input**: Teks/suara bebas dari Layer 1.
+- **Fungsi**: Mengonversi bahasa sehari-hari pengasuh menjadi fakta medis terstruktur.
+- **Inovasi Kernel**: **P3 — Epistemic Fact Ledger**. Membedakan kepastian fakta (*Observed*, *Reported*, *Inferred*, *Contradicted*, *Stale*).
+- **Output**: Entri fakta terverifikasi lengkap dengan tingkat kepastian.
 </details>
 
 <details open>
 <summary><b>⚙️ Layer 3 — Obligation Kernel (P1 Bitemporal Obligation Ledger)</b></summary>
 <br/>
 
-- **Fungsi**: Jantung logika sistem untuk mengelola seluruh kewajiban perawatan lansia.
-- **Inovasi Kernel**: **P1 — Bitemporal Obligation Ledger**. Memisahkan *Valid Time* (kapan tindakan harus terjadi secara medis) dan *Transaction Time* (kapan data dicatat di database).
-- **Komponen**: *Temporal Rules Compiler*, *Care Obligation Graph*, *Negative-Obligation Checker*, dan *Care Debt & Missing Obligation Detector*.
+- **Input**: Fakta terstruktur dari Layer 2 & Rule Library.
+- **Fungsi**: Memetakan kejadian menjadi kewajiban perawatan terstruktur dan mendeteksi keterlambatan.
+- **Inovasi Kernel**: **P1 — Bitemporal Obligation Ledger**. Memisahkan *Valid Time* (waktu klinis nyata) & *Transaction Time* (waktu pencatatan database).
+- **Output**: Graph kewajiban perawatan & sinyal *care debt*.
 </details>
 
 <details open>
 <summary><b>🤖 Layer 4 — Superagent Swarm & Authority Envelope (P6 Safeguards)</b></summary>
 <br/>
 
-- **Fungsi**: Mengoordinasikan sekumpulan agen otonom untuk menyelesaikan misi perawatan tanpa konflik.
-- **Inovasi Kernel**: **P6 — Authority Envelope (A0–A3)**. Menjaga batasan kedaulatan AI:
-  - **A0**: Tindakan administratif otomatis.
-  - **A1**: Pembacaan & pembaruan status sistem internal.
-  - **A2**: Notifikasi & eskalasi penting.
-  - **A3**: Keputusan klinis/medis yang **wajib persetujuan manusia mutlak**.
-- **Komponen**: *Care Mission Orchestrator*, *Sub-Agent Swarm* (Recovery, Handover, HR, Workforce, Family Liaison), dan *Tool Execution Registry*.
+- **Input**: Graph kewajiban dari Layer 3.
+- **Fungsi**: Mengorkestrasi agen otonom (Recovery, Handover, HR, Workforce, Family) untuk menangani tugas.
+- **Inovasi Kernel**: **P6 — Authority Envelope (A0–A3)**. Menegakkan batasan otorisasi AI (A0 Otomatis s/d A3 Persetujuan Manusia Mutlak).
+- **Output**: Kontrak aksi berizin yang terverifikasi aman.
 </details>
 
 <details>
 <summary><b>💾 Layer 5 — Eksekusi Terkontrol & Penyimpanan Berizin</b></summary>
 <br/>
 
-- **Fungsi**: Mengeksekusi tindakan terotorisasi ke database dan kanal komunikasi.
-- **Komponen**: Supabase PostgreSQL dengan *Row-Level Security (RLS)* ketat, *Signed Storage* untuk foto medis berprivasi, *Notification Engine*, dan *WhatsApp API Gateway*.
+- **Input**: Kontrak aksi dari Layer 4.
+- **Fungsi**: Mengeksekusi penulisan database ber-RLS dan mengirim notifikasi WhatsApp/Sistem.
+- **Output**: Record tersimpan di Supabase PostgreSQL & notifikasi terkirim.
 </details>
 
 <details>
 <summary><b>🔍 Layer 6 — Verifikasi Bukti (P2 Evidence-Grade Verifier)</b></summary>
 <br/>
 
-- **Fungsi**: Memastikan setiap kewajiban yang dilaporkan selesai dengan bukti otentik.
-- **Inovasi Kernel**: **P2 — Evidence-Grade Verifier (E0–E3)**:
-  - **E0**: Klaim verbal/teks sederhana.
-  - **E1**: Artefak foto ber-hash SHA-256 / QR lokasi.
-  - **E2**: Konfirmasi tanda tangan dari staf kedua.
-  - **E3**: Verifikasi sensor IoT / perangkat medis terhubung.
-- **Komponen**: *Spot Challenge Engine* (pemeriksaan sampel acak) & *Postcondition Evaluator*.
+- **Input**: Berkas foto bukti & klaim laporan tugas.
+- **Fungsi**: Memverifikasi pemenuhan bukti penyelesaian tugas secara obyektif.
+- **Inovasi Kernel**: **P2 — Evidence-Grade Verifier (E0–E3)** (E0 Klaim, E1 Foto/QR Hash SHA-256, E2 Dual Signoff Staf, E3 Sensor IoT).
+- **Output**: Keputusan penutupan tugas (*Verified Closure* / *Escalation*).
 </details>
 
 <details>
 <summary><b>🔐 Layer 7 — Platform Audit & Keamanan Immutable</b></summary>
 <br/>
 
-- **Fungsi**: Menjamin akuntabilitas dan transparansi hukum penuh.
-- **Komponen**: *Append-Only Hash-Chained Audit Trail (SHA-256 Chain)*. Mencatat seluruh ingesti, keputusan agen, verifikasi bukti, dan override manusia secara tak tertempa.
+- **Input**: Seluruh event & keputusan dari Layer 1–6.
+- **Fungsi**: Mencatat jejak aktivitas ke dalam *append-only SHA-256 hash chain*.
+- **Output**: Cryptographic audit log tak tertempa.
 </details>
 
 <details>
 <summary><b>📊 Layer 8 — Analisis & Jaminan Asinkron (P4 Failure Simulator)</b></summary>
 <br/>
 
-- **Fungsi**: Evaluasi risiko sistem secara offline dan pemutaran ulang aturan (*rule replay*).
-- **Inovasi Kernel**: **P4 — Failure-Set Search Simulator**. Mensimulasikan kombinasi kegagalan staf tercepat untuk mencegah *care debt* sebelum terjadi.
-- **Komponen**: *Competency Gap Report*, *Retroactive Rule Replay*, dan *Adversarial Agent Benchmark Lab*.
+- **Fungsi**: Simulasi offline risiko kegagalan jadwal & pemutaran ulang aturan (*rule replay*).
+- **Inovasi Kernel**: **P4 — Failure-Set Search Simulator**.
+- **Output**: Laporan risiko keterlibatan & rekomendasi kapasitas staf.
 </details>
 
 <details>
 <summary><b>📋 Layer 9 — Keluaran Operasional & Portal Keluarga</b></summary>
 <br/>
 
-- **Fungsi**: Menyajikan antarmuka hasil kerja dan serah terima shift secara real-time.
-- **Komponen**: *Two-Sided Handover Contract*, *Realtime Supervisor Dashboard*, *Consent-Filtered Family Portal*, dan *Care Evidence Pack (.json audit export)*.
+- **Fungsi**: Menyajikan antarmuka hasil kerja real-time untuk Supervisor & Keluarga (*Consent-Filtered*).
+- **Output**: Dashboard Supervisor, Contract Handover Dua Pihak, & Family Portal.
 </details>
 
 ---
 
-## 🌟 Fitur-Fitur Interaktif & Utama
+## 🌟 Keunggulan Utama & Fitur Sistem
 
 <table width="100%">
   <tr>
     <td width="50%" valign="top">
       <h3>🎙️ Care Capture & Voice STT</h3>
-      <p>Pengasuh dapat menyampaikan laporan perawatan melalui perintah suara (Whisper V3), input teks, atau foto medis. Sistem mengekstraksi instruksi terstruktur secara otomatis tanpa mengganggu alur kerja pengasuh di lapangan.</p>
+      <p>Pengasuh dapat menyampaikan laporan perawatan melalui perintah suara (Whisper V3), input teks, atau foto medis. Ekstraksi terstruktur instan di lapangan.</p>
     </td>
     <td width="50%" valign="top">
       <h3>⚙️ Obligation Kernel Bitemporal (P1)</h3>
-      <p>Membedakan <i>Valid Time</i> (kapan tindakan perawatan harus dilakukan di dunia nyata) dan <i>Transaction Time</i> (kapan data dicatat di database). Otomatis mendeteksi <b>Care Debt</b> jika ada instruksi perawatan yang tertunda.</p>
+      <p>Membedakan <i>Valid Time</i> dan <i>Transaction Time</i>. Otomatis mendeteksi <b>Care Debt</b> jika instruksi perawatan medis belum dikerjakan.</p>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <h3>🛡️ P6 Authority Envelope & Safeguards</h3>
-      <p>Membatasi wewenang AI dari tingkat <b>A0 (Otomatis)</b> hingga <b>A3 (Kedaulatan Manusia Mutlak)</b>. AI tidak pernah membuat keputusan klinis atau mengubah resep obat tanpa persetujuan verbal/tertulis dari Supervisor berwenang.</p>
+      <h3>🛡️ P6 Authority Envelope (A0–A3)</h3>
+      <p>Membatasi wewenang AI. Keputusan klinis dan perubahan dosis obat wajib persetujuan manusia mutlak (A3) dari Supervisor.</p>
     </td>
     <td width="50%" valign="top">
       <h3>🔍 Evidence-Grade Verifier (P2 & P5)</h3>
-      <p>Memvalidasi bukti penyelesaian tugas melalui 4 tingkatan (E0 Klaim, E1 Foto/QR Hash, E2 Verifikasi Staf Kedua, E3 Data Sensor IoT). Dilengkapi <i>Spot Challenge Engine</i> acak untuk pengujian kualitas.</p>
+      <p>Verifikasi bukti multi-tingkat (E0 Klaim verbal, E1 Hash Foto SHA-256, E2 Dual Signoff, E3 Data Sensor) dengan <i>Spot Challenge Engine</i> acak.</p>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
       <h3>📋 Two-Sided Handover Contract</h3>
-      <p>Serah terima shift antar pengasuh yang mengikat secara digital dengan dua konfirmasi pihak (Pengirim & Penerima) serta digest enkripsi SHA-256 yang tersimpan dalam database.</p>
+      <p>Serah terima shift antar pengasuh berikat digital dua arah (Pengirim & Penerima) dengan digest enkripsi SHA-256 terverifikasi di database.</p>
     </td>
     <td width="50%" valign="top">
       <h3>🔗 Immutable SHA-256 Audit Trail</h3>
-      <p>Setiap interaksi, persetujuan supervisor, eksekusi tool, dan pengunggahan bukti dicatat dalam <i>append-only ledger</i> berantai SHA-256 yang tidak dapat diubah atau dihapus.</p>
+      <p>Seluruh interaksi, verifikasi bukti, dan keputusan dicatat dalam <i>append-only ledger</i> berantai SHA-256 yang tidak dapat diubah atau dihapus.</p>
     </td>
   </tr>
 </table>
@@ -281,7 +287,7 @@ Sistem SambungJaga AI dirancang secara holistik melalui **10 Pemrosesan Layer Da
 
 ## 🤖 Matriks Model AI & Infrastruktur
 
-Berdasarkan spesifikasi `modellist.md`, ekosistem SambungJaga AI ditenagai oleh kombinasi model AI mutakhir:
+Berdasarkan spesifikasi `modellist.md`, SambungJaga AI ditenagai oleh kombinasi model AI mutakhir:
 
 | Nama Model | Provider | Model ID | Fungsi Utama dalam Sistem | Batas Rate & Kuota |
 | :--- | :--- | :--- | :--- | :--- |
@@ -293,12 +299,12 @@ Berdasarkan spesifikasi `modellist.md`, ekosistem SambungJaga AI ditenagai oleh 
 
 ---
 
-## 🚀 Cara Menjalankan & Deployment
+## 🚀 Cara Menjalankan & Testing
 
 ### 📋 Prasyarat
 - **Node.js**: Versi 20.x LTS atau lebih baru
 - **npm**: Versi 10.x+
-- **Supabase CLI**: Untuk verifikasi & pengaplikasian migration database
+- **Supabase CLI**: Untuk pengaplikasian migration database
 
 ### 1️⃣ Clone Repository & Instal Dependensi
 
@@ -310,51 +316,30 @@ npm ci
 
 ### 2️⃣ Konfigurasi `.env.local`
 
-Buat berkas `.env.local` dari `.env.example`:
+Salin `.env.example` ke `.env.local` dan isi kredensial Supabase Anda:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Pastikan variabel Supabase terisi:
-
-```env
-VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
-
 ### 3️⃣ Setup Migration Database Supabase
-
-Terapkan migration skema database ke Supabase:
 
 ```bash
 npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-### 4️⃣ Jalankan Mode Pengembang (Development Server)
+### 4️⃣ Jalankan Mode Development Server & Testing Suite
 
 ```bash
+# Jalankan Server Frontend Vite
 npm run dev
-```
 
-Akses aplikasi melalui peramban pada `http://localhost:5173`.
-
----
-
-## 🧪 Eksekusi Pengujian (Testing Suite)
-
-Proyek ini telah dilengkapi dengan unit test & E2E test yang dapat diuji dengan mudah:
-
-```bash
-# Pengujian Unit (Vitest)
+# Eksekusi Unit Test (Vitest)
 npm run test:unit
 
-# Pengujian End-to-End (Playwright)
+# Eksekusi End-to-End Test (Playwright)
 npm run test:e2e
-
-# Jalankan Seluruh Test Suite
-npm run test
 ```
 
 ---
@@ -371,7 +356,7 @@ git status
 git add .
 
 # 3. Buat commit terstruktur
-git commit -m "docs: add 3D moving SVG animations & update README.md"
+git commit -m "docs: streamline README.md layout & add 4D data flow animation"
 
 # 4. Push ke repositori GitHub menggunakan token dari .env
 git push https://<YOUR_GITHUB_TOKEN>@github.com/s1informatika11s25007-maker/SambungJagaAI.git main
@@ -381,9 +366,9 @@ git push https://<YOUR_GITHUB_TOKEN>@github.com/s1informatika11s25007-maker/Samb
 
 ## 🔒 Kebijakan Keamanan & Batasan Klinis
 
-1. **Otomasi Administratif & Pendukung**: SambungJaga AI tidak memberikan instruksi medis, mengubah terapi obat, atau memberikan diagnosis mandiri. Keputusan klinis tetap sepenuhnya di bawah wewenang dokter/staf kesehatan berwenang.
-2. **Perperlindungan Data PHI/PII**: Semua data yang dibagikan ke Portal Keluarga diproses melalui penyaringan privasi (*Consent Disclosure Engine*).
-3. **Integritas SHA-256**: Hash berkas foto digunakan untuk mendeteksi manipulasi artefak lokal, bukan pengganti tanda tangan digital tersertifikasi medis.
+1. **Bukan Alat Diagnosis Mandiri**: SambungJaga AI adalah sistem otomasi koordinasi tugas. Keputusan medis, terapi, dan diagnosis tetap menjadi wewenang penuh dokter/supervisor berwenang.
+2. **Perlindungan Privasi PDP/PHI**: Portal keluarga dilindungi oleh *Consent Disclosure Filter* yang membatasi informasi sesuai izin lansia/fasilitas.
+3. **Integritas Bukti SHA-256**: Hash foto digunakan untuk mendeteksi manipulasi artefak lokal secara matematis.
 
 ---
 
