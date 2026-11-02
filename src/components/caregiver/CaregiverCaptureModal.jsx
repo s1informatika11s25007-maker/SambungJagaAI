@@ -56,21 +56,31 @@ export default function CaregiverCaptureModal({ isOpen, onClose, residents, onCa
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const [candidateList, setCandidateList] = useState([]);
+
+  const handleSubmit = async (e, forcedResidentId = null) => {
+    if (e) e.preventDefault();
     if (!inputText.trim()) return;
+
+    const targetResId = forcedResidentId || (residentId === 'auto' ? null : residentId);
 
     try {
       const res = await onCaptureSubmit({
         text: inputText,
         sourceType: isListening ? 'voice_stt' : 'text_input',
-        residentId: residentId === 'auto' ? null : residentId,
+        residentId: targetResId,
         actorName: currentUser?.name || currentUser?.full_name || 'Caregiver'
       });
 
       if (!res?.success) {
-        setFeedback({ type: 'error', text: res?.error || 'Gagal memproses laporan.' });
+        if (res?.needsResident && res?.residentCandidates?.length) {
+          setCandidateList(res.residentCandidates);
+          setFeedback({ type: 'amber', text: 'Terdeteksi beberapa kandidat nama lansia. Pilih salah satu lansia berikut:' });
+        } else {
+          setFeedback({ type: 'error', text: res?.error || res?.message || 'Gagal memproses laporan.' });
+        }
       } else {
+        setCandidateList([]);
         setFeedback({
           type: 'success',
           text: res?.message || (res?.offline ? res?.message : 'Laporan berhasil diproses oleh Care Superagent Otonom')
@@ -179,10 +189,34 @@ export default function CaregiverCaptureModal({ isOpen, onClose, residents, onCa
             </div>
           </div>
 
+          {/* Ambiguity Candidate Resolution Selector */}
+          {candidateList.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 space-y-2">
+              <p className="text-xs font-bold text-amber-900">Kandidat Lansia Terdeteksi (Konfirmasi 1-Tap):</p>
+              <div className="flex flex-wrap gap-2">
+                {candidateList.map((cand) => (
+                  <button
+                    key={cand.id}
+                    type="button"
+                    onClick={() => {
+                      setResidentId(cand.id);
+                      handleSubmit(null, cand.id);
+                    }}
+                    className="bg-white hover:bg-amber-600 hover:text-white border border-amber-300 text-amber-950 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition flex items-center space-x-1"
+                  >
+                    <span>👤 {cand.full_name} ({cand.room_number || 'Kamar'})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {feedback && (
             <div className={`p-3 rounded-xl text-xs flex items-start space-x-2 border font-medium ${
               feedback.type === 'error'
                 ? 'bg-rose-50 border-rose-300 text-rose-900'
+                : feedback.type === 'amber'
+                ? 'bg-amber-50 border-amber-300 text-amber-900'
                 : 'bg-emerald-50 border-emerald-300 text-emerald-900'
             }`}>
               {feedback.type === 'error' ? <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" /> : <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />}

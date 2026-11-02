@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, CheckCircle2, ClipboardList, Heart,
   LockKeyhole, MessageSquareText, ShieldCheck, Users,
-  Workflow, Activity, FileCheck2, TimerReset, ScanEye
+  Workflow, Activity, FileCheck2, TimerReset, ScanEye, Bot
 } from 'lucide-react';
 import ArchitectureModal from '../../components/common/ArchitectureModal';
 
@@ -31,6 +31,7 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
           <span className="sj-eyebrow sj-eyebrow-light"><span className="sj-live-dot" /> CARE CONTINUITY, CONNECTED</span>
           <h1>Perawatan yang baik dimulai dari <em>koordinasi yang terjaga.</em></h1>
           <p className="sj-hero-description">SambungJaga membantu tim perawatan lansia menghubungkan laporan, kewajiban, bukti, dan serah terima shift dalam satu ruang kerja yang mudah dipahami.</p>
+
           <div className="sj-hero-actions">
             <button type="button" onClick={onGoToLogin} className="sj-hero-primary">Masuk ke platform <ArrowRight size={18} /></button>
             <button type="button" onClick={() => setIsArchitectureModalOpen(true)} className="sj-hero-secondary">Jelajahi cara kerja <ArrowUpRight size={17} /></button>
@@ -58,7 +59,15 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
             <span><strong>Shift handover</strong><small>Catatan untuk tim berikutnya</small></span>
             <span className="sj-card-pulse" />
           </div>
-          <div className="sj-visual-brand-orb"><img src="/Friendly Futuristic Robot Mascot.png" alt="Maskot SambungJaga" /></div>
+
+          {/* Prominent Floating Brand Mascot Orb */}
+          <div className="sj-visual-brand-orb" title="Maskot SambungJaga AI">
+            <img
+              src="/mascot.png"
+              onError={(e) => { e.currentTarget.src = '/Friendly Futuristic Robot Mascot.png'; }}
+              alt="Maskot Robot SambungJaga AI"
+            />
+          </div>
           <div className="sj-visual-caption"><span className="sj-caption-line" /> Satu alur. Informasi tetap tersambung.</div>
         </div>
       </section>

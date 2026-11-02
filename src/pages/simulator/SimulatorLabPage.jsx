@@ -145,6 +145,34 @@ export default function SimulatorLabPage({ staff, obligations }) {
         </div>
       </div>
 
+      {/* Module 4: HR Autonomous Operations Agent (P1) */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xl shadow-slate-200/50 space-y-4 w-full">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-slate-900 flex items-center">
+            <Cpu className="w-4 h-4 mr-1.5 text-indigo-600" />
+            HR Autonomous Operations Agent (P1)
+          </h3>
+          <Badge variant="success">HR Operational Lifecycle</Badge>
+        </div>
+        <p className="text-xs text-slate-600">
+          Otomatisasi onboarding, monitoring masa berlaku sertifikasi perawat, rancangan jadwal shift, rekonsiliasi absensi, dan pelaporan bulanan tanpa pengisian manual berulang.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Total Staf Terdaftar</span>
+            <p className="text-base font-extrabold text-slate-900">{staff?.length || 0} Petugas</p>
+          </div>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Status Shift Aktif</span>
+            <p className="text-base font-extrabold text-emerald-700">{staff?.filter(s => s.shift_status === 'on_duty').length || 0} On Duty</p>
+          </div>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Tingkat Compliance</span>
+            <p className="text-base font-extrabold text-sky-700">100% Validated</p>
+          </div>
+        </div>
+      </div>
+
       {/* Module 3: Adversarial Lab & Prompt Injection Tester */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xl shadow-slate-200/50 space-y-4 w-full">
         <div className="flex items-center justify-between">

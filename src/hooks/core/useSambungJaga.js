@@ -10,6 +10,12 @@ import { runCareSuperagent } from '../../services/ai/aiSuperagent';
 import { planAutopilot, executeAutopilot } from '../../services/automation/autopilot';
 import { fetchAllData, deriveRules, enrichObligations } from '../../services/data/dataService';
 import { playA3ReviewAlert, playSuccessChime } from '../../services/dashboard/audioAlertService';
+import { runSlaWatchdogSweep } from '../../services/automation/slaWatchdog';
+import { handleCaregiverAbsence, findOptimalCaregiverForTask } from '../../services/ai/workforceAgent';
+import { analyzeEvidenceIntelligence } from '../../services/caregiver/evidenceIntelligence';
+import { synthesizeAutonomousHandoverDraft } from '../../services/handover/handoverContractService';
+import { submitFamilyVisitRequest, submitFamilyComplaint } from '../../services/ai/familyLiaisonAgent';
+import { checkCertificationExpirations, reconcileAttendanceWithRoster, draftShiftRoster, offboardStaffMember, generateMonthlyHrReport } from '../../services/ai/hrAutonomousAgent';
 import {
   acquireWebLock,
   showSupervisorWebPushNotification,
@@ -176,6 +182,29 @@ export function useSambungJaga() {
       try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ }
     };
   }, [currentUser?.id, currentUser?.role]);
+
+  // Autonomous 24/7 SLA Watchdog Background Execution Sweep (P0)
+  useEffect(() => {
+    if (!currentUser?.id || !['supervisor', 'admin_hr'].includes(currentUser.role)) return undefined;
+
+    const watchdogInterval = setInterval(async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      try {
+        await runSlaWatchdogSweep({
+          obligations,
+          staff,
+          residents,
+          onEscalate: (obId) => escalateObligation(obId),
+          onNotify: (notifData) => addNotification(notifData),
+          actorName: 'Autonomous SLA Watchdog'
+        });
+      } catch (err) {
+        console.warn('Autonomous SLA Watchdog background sweep warning:', err);
+      }
+    }, 30000); // 30 seconds periodic check
+
+    return () => clearInterval(watchdogInterval);
+  }, [currentUser?.id, currentUser?.role, obligations.length]);
 
   // Background reassignment is intentionally disabled: operational changes run through audited Autopilot.
 
@@ -643,10 +672,51 @@ export function useSambungJaga() {
     return outcome;
   };
 
+  // Helper Agent Methods for UI components
+  const triggerSlaWatchdogSweepManual = async () => {
+    return await runSlaWatchdogSweep({
+      obligations, staff, residents,
+      onEscalate: (obId) => escalateObligation(obId),
+      onNotify: (notifData) => addNotification(notifData),
+      actorName: currentUser?.name || 'Supervisor'
+    });
+  };
+
+  const triggerAbsenceReallocation = (absentStaffId) => {
+    return handleCaregiverAbsence({ absentStaffId, staff, obligations, residents });
+  };
+
+  const synthesizeHandover = (outgoingStaffId, incomingStaffId) => {
+    const outgoing = staff.find(s => s.id === outgoingStaffId) || currentUser;
+    const incoming = staff.find(s => s.id === incomingStaffId) || null;
+    return synthesizeAutonomousHandoverDraft({ outgoingStaff: outgoing, incomingStaff: incoming, obligations, residents, staff });
+  };
+
+  const submitFamilyVisit = (payload) => {
+    return submitFamilyVisitRequest({ ...payload, familyUserId: currentUser?.id });
+  };
+
+  const submitFamilyFeedback = (payload) => {
+    return submitFamilyComplaint({ ...payload, familyUserId: currentUser?.id });
+  };
+
+  const runHrAudit = () => {
+    const certAlerts = checkCertificationExpirations(staff);
+    const attendanceReconciled = reconcileAttendanceWithRoster(staff);
+    const monthlyReport = generateMonthlyHrReport(staff, obligations);
+    return { certAlerts, attendanceReconciled, monthlyReport };
+  };
+
   return {
     refreshData,
     autopilotPlan,
     runAutopilot,
+    triggerSlaWatchdogSweepManual,
+    triggerAbsenceReallocation,
+    synthesizeHandover,
+    submitFamilyVisit,
+    submitFamilyFeedback,
+    runHrAudit,
     activeRole,
     setActiveRole,
     currentUser,

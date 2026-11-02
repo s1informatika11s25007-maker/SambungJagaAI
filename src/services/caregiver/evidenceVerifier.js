@@ -9,6 +9,19 @@ import { supabase } from '../../supabase/client/client';
 import { validateEvidencePayload } from '../../utils/common/validators';
 
 /**
+ * Generates a random spot challenge object for spot testing evidence submissions.
+ */
+export function generateRandomSpotChallenge({ id, obligationId }) {
+  return {
+    id: `challenge-${Date.now()}`,
+    evidence_id: id || 'ev-1',
+    obligation_id: obligationId || 'ob-1',
+    challenge_reason: 'Pemeriksaan acak bukti oleh Spot Challenge Engine',
+    status: 'pending'
+  };
+}
+
+/**
  * Verifies submitted caregiver evidence against required obligation evidence grade via Supabase Edge Function.
  *
  * @param {string} requiredGrade - Required evidence grade (E0, E1, E2, E3).

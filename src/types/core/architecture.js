@@ -110,3 +110,38 @@ export const CORE_INNOVATIONS = [
   { code: 'P5', title: 'Tamper-Evident Offline Ledger', desc: 'Hash-chain lokal pada PWA dengan atestasi perangkat anti-backdate' },
   { code: 'P6', title: 'Authority Envelope', desc: 'Pencegahan aksi ilegal AI: A0 (Baca), A1 (Reversibel), A2 (Alert), A3 (Klinis -> Mandatory Human Approval)' }
 ];
+
+/**
+ * Resident Care Dependency Levels (Validated by clinical professional)
+ */
+export const CARE_LEVEL = {
+  MANDIRI: 'mandiri',             // Mandiri (Independent)
+  PARTIAL_CARE: 'partial_care',   // Perawatan Parsial (Assisted)
+  TOTAL_CARE: 'total_care'        // Perawatan Total (High Dependency)
+};
+
+/**
+ * Agent Execution Policy Levels (A0 - A3)
+ */
+export const AGENT_POLICY = {
+  A0_READ_ONLY: 'A0',                // Query and read state
+  A1_ADMIN_STATE_CHANGE: 'A1',       // Reversible admin task, queueing, auto-assign
+  A2_NOTIFICATION_DISPATCH: 'A2',    // Notification, WhatsApp alert
+  A3_HUMAN_APPROVAL_REQUIRED: 'A3'   // Mandatory Human Approval (Clinical, irreversible, high risk)
+};
+
+/**
+ * System Event Queue Types
+ */
+export const SYSTEM_EVENT_TYPES = {
+  FACT_CREATED: 'FACT_CREATED',
+  OBLIGATION_CREATED: 'OBLIGATION_CREATED',
+  OBLIGATION_CLOSED: 'OBLIGATION_CLOSED',
+  STAFF_ABSENT: 'STAFF_ABSENT',
+  SLA_BREACH: 'SLA_BREACH',
+  EVIDENCE_SUBMITTED: 'EVIDENCE_SUBMITTED',
+  HANDOVER_INITIATED: 'HANDOVER_INITIATED',
+  FAMILY_COMPLAINT: 'FAMILY_COMPLAINT',
+  FAMILY_VISIT_REQUEST: 'FAMILY_VISIT_REQUEST'
+};
+

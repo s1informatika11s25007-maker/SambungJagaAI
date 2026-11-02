@@ -284,6 +284,38 @@ export default function SupervisorDashboardPage({
         {/* Right Column (5 Cols): Otomasi Control Panel & Kondisi Penghuni Cards */}
         <div className="lg:col-span-5 space-y-4">
 
+          {/* Workforce Intelligence Agent (P0) — Absence Rebalancing Widget */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4 text-emerald-600" />
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Workforce Intelligence Agent (P0)</h3>
+              </div>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                Shift & Capacity
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-600 font-normal leading-relaxed">
+              Mempertimbangkan jadwal shift, absensi, kompetensi aktif, beban durasi/kompleksitas, tingkat perawatan lansia, serta ketersediaan perawat pengganti.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => {
+                const absentStaff = staff.find(s => s.role === 'caregiver');
+                if (absentStaff && typeof onRunAutopilot === 'function') {
+                  setDispatchNotification(`Workforce Agent mendeteksi kompetensi ${absentStaff.full_name} & mengalokasikan tugas ulang secara optimal.`);
+                  onRunAutopilot();
+                }
+              }}
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Simulasi Absensi & Re-Alokasi Pengganti Otomatis</span>
+            </button>
+          </div>
+
           {/* Clean Otomasi Control Panel Card */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3.5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">

@@ -107,8 +107,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--s
 .sj-floating-icon-green { color: #54896c; background: #e7f3e9; }
 .sj-mini-check { color: #4e9a78; margin-left: auto; }
 .sj-card-pulse { width: 8px; height: 8px; margin-left: auto; border-radius: 50%; background: #5ab28b; box-shadow: 0 0 0 5px #e4f4eb; }
-.sj-visual-brand-orb { position: absolute; right: 0; top: 0; width: 116px; height: 116px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: linear-gradient(145deg,#e2f2e9,#fff); border: 1px solid rgba(255,255,255,.8); box-shadow: var(--sj-shadow); animation: sj-float 7s ease-in-out -1s infinite; }
-.sj-visual-brand-orb img { width: 115%; height: 115%; object-fit: contain; }
+.sj-visual-brand-orb { position: absolute; right: -28px; top: -28px; z-index: 10; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; box-shadow: none; border-radius: 0; overflow: visible; animation: sj-float 6s ease-in-out -1s infinite; }
+.sj-visual-brand-orb img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 16px 32px rgba(27,72,60,.35)); }
 .sj-visual-caption { position: absolute; bottom: 8px; right: 8%; display: flex; align-items: center; gap: 9px; color: #6c8980; font-size: 10px; font-weight: 750; letter-spacing: .04em; }
 .sj-caption-line { width: 28px; height: 1px; background: #83b5a1; }
 .sj-proof-strip { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; padding: 22px 26px; border: 1px solid #e3ece6; border-radius: 20px; background: rgba(255,255,255,.82); box-shadow: var(--sj-shadow-soft); }
@@ -273,7 +273,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--s
   .sj-floating-card-bottom { right: -2px; bottom: 50px; }
   .sj-floating-card strong { font-size: 10px; }
   .sj-floating-card small { font-size: 8px; }
-  .sj-visual-brand-orb { width: 78px; height: 78px; right: -2px; top: -2px; }
+  .sj-visual-brand-orb { width: 125px; height: 125px; right: -10px; top: -10px; }
   .sj-visual-caption { right: 4%; bottom: 3px; font-size: 8px; }
   .sj-section { padding: 66px 0 55px; }
   .sj-section-heading { margin-bottom: 26px; }

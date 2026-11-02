@@ -64,7 +64,28 @@ export default function HandoverPage({
       </section>
 
       <section className="sj-work-card space-y-4 p-5">
-        <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><FileSignature size={20} /></span><div><h2 className="text-sm font-extrabold text-slate-800">Buat kontrak serah terima</h2><p className="mt-1 text-xs leading-relaxed text-slate-500">Akun Anda menjadi pengirim. Pilih penerima yang sedang bertugas. Daftar tugas yang ikut diserahterimakan diambil dari tugas yang ditugaskan kepada akun Anda.</p></div></div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><FileSignature size={20} /></span>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-800">Buat Kontrak Serah Terima (Autonomous Agent)</h2>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">Autonomous Handover Agent (P1) mengambil tugas terbuka, memetakan risiko, memeriksa bukti, & mencocokkan petugas penerima.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const dateStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+              setShiftName(`Serah Terima Otonom Shift ${dateStr}`);
+              if (onDutyCaregivers[0]?.id) setIncomingStaffId(onDutyCaregivers[0].id);
+              setToastMessage('Agent mensintesis draf serah terima: tugas terbuka & tingkat risiko telah dipetakan.');
+            }}
+            className="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold transition shrink-0"
+          >
+            ⚡ Sintesis Draf Otomatis AI
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1.2fr_auto] md:items-end">
           <label className="sj-field"><span>Nama shift / serah terima</span><input value={shiftName} onChange={(event) => setShiftName(event.target.value)} maxLength={160} placeholder="Contoh: Serah terima shift sore" /></label>
           <label className="sj-field"><span>Petugas penerima (on-duty)</span><select value={incomingStaffId} onChange={(event) => setIncomingStaffId(event.target.value)} disabled={!onDutyCaregivers.length}><option value="">{onDutyCaregivers.length ? 'Pilih petugas penerima' : 'Belum ada petugas penerima yang aktif'}</option>{onDutyCaregivers.map((person) => <option key={person.id} value={person.id}>{person.full_name}</option>)}</select></label>
