@@ -130,12 +130,45 @@ export function findOptimalCaregiverForTask({
  * 4. Checks agent authority (if critical tasks exist, requests human approval A3).
  * 5. Saves reassignment drafts / emits system event for approval.
  */
-export async function handleCaregiverAbsence({
-  absentStaffId,
-  staff = [],
-  obligations = [],
-  residents = []
-}) {
+export async function handleCaregiverAbsence(absentStaffIdOrPayload, facilityId = 'FAC-001', options = {}) {
+  let absentStaffId = null;
+  let staff = [];
+  let obligations = [];
+  let residents = [];
+
+  if (typeof absentStaffIdOrPayload === 'object' && absentStaffIdOrPayload !== null) {
+    absentStaffId = absentStaffIdOrPayload.absentStaffId || absentStaffIdOrPayload.caregiverId;
+    facilityId = absentStaffIdOrPayload.facilityId || facilityId;
+    staff = absentStaffIdOrPayload.staff || [];
+    obligations = absentStaffIdOrPayload.obligations || [];
+    residents = absentStaffIdOrPayload.residents || [];
+  } else {
+    absentStaffId = absentStaffIdOrPayload;
+    staff = options.staff || [];
+    obligations = options.obligations || [];
+    residents = options.residents || [];
+  }
+
+  if (!staff.length) {
+    try {
+      const { data } = await supabase.from('staff_profiles').select('*').eq('facility_id', facilityId).eq('is_active', true);
+      if (data) staff = data;
+    } catch (_) {}
+  }
+
+  if (!obligations.length) {
+    try {
+      const { data } = await supabase.from('bitemporal_obligations').select('*').eq('facility_id', facilityId).in('status', ['open', 'in_progress', 'escalated']);
+      if (data) obligations = data;
+    } catch (_) {}
+  }
+
+  if (!residents.length) {
+    try {
+      const { data } = await supabase.from('residents').select('*').eq('facility_id', facilityId);
+      if (data) residents = data;
+    } catch (_) {}
+  }
   const absentPerson = staff.find((s) => s.id === absentStaffId);
   const affectedObligations = obligations.filter(
     (o) => o.assigned_caregiver_id === absentStaffId && ['open', 'in_progress', 'escalated'].includes(o.status)
@@ -185,6 +218,23 @@ export async function handleCaregiverAbsence({
     isClinical: hasHighRiskTask,
     actionType: 'ABSENCE_REALLOCATION'
   });
+
+  // Execute real database reassignments if no human approval is required for routine tasks
+  if (!perm.requiresApproval && reallocations.length > 0) {
+    for (const alloc of reallocations) {
+      try {
+        await supabase
+          .from('bitemporal_obligations')
+          .update({
+            assigned_caregiver_id: alloc.assignedToId,
+            status: 'open'
+          })
+          .eq('id', alloc.taskId);
+      } catch (dbErr) {
+        console.warn(`[Workforce Reassignment DB] Error updating task ${alloc.taskId}:`, dbErr);
+      }
+    }
+  }
 
   // Emit event for outbox / notification system
   await emitSystemEvent('WORKFORCE_ABSENCE_REALLOCATION_DRAFT', {

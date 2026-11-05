@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Zap, Send, Loader2, Check, AlertCircle } from 'lucide-react';
+import { Zap, Send, Loader2, Check, AlertCircle, Activity, ShieldCheck } from 'lucide-react';
+import OperationalHealthCenter from './OperationalHealthCenter';
+import AutonomousSupervisorCenterModal from './AutonomousSupervisorCenterModal';
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -11,15 +13,17 @@ const greeting = () => {
 
 /**
  * One place to act: a single command box (laporan / perintah bebas → Superagent)
- * plus one-tap Autopilot. All numbers are computed from live database state.
+ * plus one-tap Autopilot, Operational Health Center, and Supervisor Intelligence Center.
  */
 export default function CommandCenter({
-  activeRole, currentUser, obligations = [], residents = [],
+  activeRole, currentUser, obligations = [], residents = [], staff = [],
   autopilotPlan = [], onRunAutopilot, onCommand
 }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(null); // 'cmd' | 'auto'
   const [feedback, setFeedback] = useState(null);
+  const [showHealthModal, setShowHealthModal] = useState(false);
+  const [showSupervisorModal, setShowSupervisorModal] = useState(false);
 
   const name = currentUser?.name || currentUser?.full_name || '';
   const open = obligations.filter((o) => o.status === 'open' || o.status === 'in_progress');
@@ -39,7 +43,7 @@ export default function CommandCenter({
     setBusy('cmd');
     try {
       const res = await onCommand(text.trim());
-      setFeedback({ ok: res?.success !== false, msg: res?.message || res?.error || 'Laporan diproses.' });
+      setFeedback({ ok: res?.success !== false, msg: res?.message || res?.error || 'Laporan dipproses.' });
       if (res?.success !== false) setText('');
     } catch (err) {
       setFeedback({ ok: false, msg: 'Gagal memproses. Coba lagi.' });
@@ -59,11 +63,34 @@ export default function CommandCenter({
   return (
     <section className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div className="text-left">
-          <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
-            {greeting()}{name ? `, ${name}` : ''}
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">Ketik satu kalimat — sisanya diurus Superagent.</p>
+        <div className="text-left space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
+              {greeting()}{name ? `, ${name}` : ''}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowHealthModal(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-xs font-medium font-mono transition shadow-sm"
+              title="Buka Operational Health Center"
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+              <span>Health 24/7</span>
+            </button>
+
+            {(activeRole === 'supervisor' || activeRole === 'admin_hr') && (
+              <button
+                type="button"
+                onClick={() => setShowSupervisorModal(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 border border-sky-200 hover:bg-sky-100 text-sky-800 text-xs font-medium font-mono transition shadow-sm"
+                title="Buka Autonomous Supervisor Intelligence Center"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-sky-600" />
+                <span>Supervisor Review Inbox</span>
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-slate-500">Ketik satu kalimat — sisanya diurus Superagent.</p>
         </div>
         <dl className="flex gap-6 text-left">
           {stats.map(([label, value, hint]) => (
@@ -97,11 +124,11 @@ export default function CommandCenter({
               type="button"
               onClick={runAuto}
               disabled={!!busy || autopilotPlan.length === 0}
-              title={autopilotPlan.map((s) => s.label).join(' · ') || 'Tidak ada aksi tertunda'}
+              title={autopilotPlan.map((s) => s.label).join(' · ') || 'Tidak ada aksi tertunda (Autopilot Latar Belakang Aktif)'}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium transition shrink-0"
             >
               {busy === 'auto' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {autopilotPlan.length ? `Jalankan Autopilot (${autopilotPlan.length})` : 'Semua beres'}
+              {autopilotPlan.length ? `Jalankan Autopilot (${autopilotPlan.length})` : 'Autopilot Aktif (24/7)'}
             </button>
           )}
         </div>
@@ -116,6 +143,16 @@ export default function CommandCenter({
           </p>
         )}
       </div>
+
+      {/* Modals */}
+      <OperationalHealthCenter isOpen={showHealthModal} onClose={() => setShowHealthModal(false)} />
+      <AutonomousSupervisorCenterModal
+        isOpen={showSupervisorModal}
+        onClose={() => setShowSupervisorModal(false)}
+        obligations={obligations}
+        residents={residents}
+        staff={staff}
+      />
     </section>
   );
 }

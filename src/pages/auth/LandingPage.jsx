@@ -2,9 +2,19 @@ import React, { useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, CheckCircle2, ClipboardList, Heart,
   LockKeyhole, MessageSquareText, ShieldCheck, Users,
-  Workflow, Activity, FileCheck2, TimerReset, ScanEye, Bot
+  Workflow, Activity, FileCheck2, TimerReset, ScanEye, CheckSquare, Upload, UserCheck, Shield
 } from 'lucide-react';
 import ArchitectureModal from '../../components/common/ArchitectureModal';
+
+const careJourneySteps = [
+  { step: '01', title: '1. Caregiver Reporting', text: 'Laporan suara atau teks masuk langsung dari perawat di lapangan.', icon: MessageSquareText },
+  { step: '02', title: '2. AI Understanding', text: 'AI mengidentifikasi penghuni, mengekstrak fakta, dan memeriksa kelengkapan.', icon: ScanEye },
+  { step: '03', title: '3. Care Obligation', text: 'Kebutuhan yang tervalidasi menjadi tugas kewajiban berdasarkan aturan panti.', icon: ClipboardList },
+  { step: '04', title: '4. Workforce Assignment', text: 'Sistem mencocokkan caregiver sesuai kompetensi, shift, dan ketersediaan.', icon: UserCheck },
+  { step: '05', title: '5. Care Evidence', text: 'Pelaksanaan dicatat dan foto bukti diunggah ke penyimpanan privat.', icon: Upload },
+  { step: '06', title: '6. Supervisor Review', text: 'Bukti & aksi klinis yang membutuhkan otorisasi diperiksa manusia berwenang.', icon: ShieldCheck },
+  { step: '07', title: '7. Continuity & Family', text: 'Handover 2 sisi, audit trail, dan informasi keluarga yang diizinkan PDP diperbarui.', icon: Heart }
+];
 
 const capabilities = [
   { icon: MessageSquareText, number: '01', title: 'Tangkap laporan', text: 'Catatan teks, suara, dan bukti masuk melalui alur yang sama sehingga konteks tidak tercecer.' },
@@ -14,9 +24,9 @@ const capabilities = [
 ];
 
 const roleCards = [
-  { icon: Users, title: 'Supervisor', text: 'Prioritaskan pekerjaan, tinjau eskalasi, dan pantau koordinasi tim.' },
-  { icon: Heart, title: 'Pengasuh', text: 'Lihat tugas aktif, kirim laporan, dan lampirkan bukti dari lapangan.' },
-  { icon: LockKeyhole, title: 'Keluarga', text: 'Akses ringkasan perawatan yang telah diizinkan oleh fasilitas.' }
+  { icon: Users, title: 'Supervisor Center', text: 'Prioritaskan pekerjaan, tinjau eskalasi A3, dan pantau koordinasi tim.' },
+  { icon: Heart, title: 'Care Dashboard', text: 'Lihat tugas aktif, kirim laporan suara/teks, dan lampirkan bukti foto OCR.' },
+  { icon: LockKeyhole, title: 'Family Care Portal', text: 'Akses ringkasan perawatan yang diizinkan PDP & ajukan kunjungan.' }
 ];
 
 export default function LandingPage({ onGoToLogin, onGoToRegister }) {
@@ -28,18 +38,18 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
         <div className="sj-hero-glow sj-hero-glow-a" />
         <div className="sj-hero-glow sj-hero-glow-b" />
         <div className="sj-hero-copy animate-fade-up">
-          <span className="sj-eyebrow sj-eyebrow-light"><span className="sj-live-dot" /> CARE CONTINUITY, CONNECTED</span>
-          <h1>Perawatan yang baik dimulai dari <em>koordinasi yang terjaga.</em></h1>
-          <p className="sj-hero-description">SambungJaga membantu tim perawatan lansia menghubungkan laporan, kewajiban, bukti, dan serah terima shift dalam satu ruang kerja yang mudah dipahami.</p>
+          <span className="sj-eyebrow sj-eyebrow-light"><span className="sj-live-dot" /> CARE CONTINUITY INTELLIGENCE</span>
+          <h1>Perawatan lansia yang terhubung dari <em>laporan sampai bukti terverifikasi.</em></h1>
+          <p className="sj-hero-description">SambungJaga menghubungkan laporan perawat, kewajiban perawatan, pencocokan staf, verifikasi bukti, hingga serah terima shift dalam satu alur yang transparan.</p>
 
           <div className="sj-hero-actions">
             <button type="button" onClick={onGoToLogin} className="sj-hero-primary">Masuk ke platform <ArrowRight size={18} /></button>
             <button type="button" onClick={() => setIsArchitectureModalOpen(true)} className="sj-hero-secondary">Jelajahi cara kerja <ArrowUpRight size={17} /></button>
           </div>
           <div className="sj-hero-trust-row">
-            <span><ShieldCheck size={15} /> Akses berbasis peran</span>
-            <span><FileCheck2 size={15} /> Bukti yang dapat ditelusuri</span>
-            <span><LockKeyhole size={15} /> Alur dengan persetujuan manusia</span>
+            <span><ShieldCheck size={15} /> Akses RLS Berbasis Peran</span>
+            <span><FileCheck2 size={15} /> Bukti Kriptografis SHA-256</span>
+            <span><LockKeyhole size={15} /> Persetujuan Manusia (A3)</span>
           </div>
         </div>
 
@@ -51,12 +61,12 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
           </div>
           <div className="sj-floating-card sj-floating-card-top">
             <span className="sj-floating-icon sj-floating-icon-blue"><ScanEye size={18} /></span>
-            <span><strong>Care insight</strong><small>Ringkasan aktivitas tersusun</small></span>
+            <span><strong>Care Continuity</strong><small>One Connected Care Journey</small></span>
             <span className="sj-mini-check"><CheckCircle2 size={16} /></span>
           </div>
           <div className="sj-floating-card sj-floating-card-bottom">
             <span className="sj-floating-icon sj-floating-icon-green"><ClipboardList size={18} /></span>
-            <span><strong>Shift handover</strong><small>Catatan untuk tim berikutnya</small></span>
+            <span><strong>Shift Handover</strong><small>Kontrak Shift Dua Sisi</small></span>
             <span className="sj-card-pulse" />
           </div>
 
@@ -72,28 +82,37 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
         </div>
       </section>
 
+      {/* Primary Featured Story: Care Continuity Intelligence — One Connected Care Journey */}
+      <section className="sj-section" id="care-journey">
+        <div className="sj-section-heading">
+          <span className="sj-eyebrow">INOVASI UNGGULAN KONSISTENSI PERAWATAN</span>
+          <h2>One Connected Care Journey</h2>
+          <p>Alur 7 langkah terintegrasi yang menghubungkan seluruh kekuatan SambungJaga dari laporan pertama hingga pembaruan keluarga.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+          {careJourneySteps.map((step) => {
+            const Icon = step.icon;
+            return (
+              <div key={step.step} className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2 relative hover:shadow-md transition">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center font-bold text-xs">
+                    <Icon size={16} />
+                  </div>
+                  <span className="text-xs font-mono font-bold text-slate-300">{step.step}</span>
+                </div>
+                <h3 className="text-xs font-bold text-slate-900">{step.title}</h3>
+                <p className="text-[11px] text-slate-600 leading-relaxed">{step.text}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="sj-proof-strip" aria-label="Prinsip platform">
         <div><span className="sj-proof-icon"><Activity size={18} /></span><span><strong>Asisten Pintar Pendamping</strong><small>Meringkas dan menyusun tindak lanjut</small></span></div>
         <div><span className="sj-proof-icon"><ShieldCheck size={18} /></span><span><strong>Keputusan tetap terjaga</strong><small>Aksi klinis membutuhkan otorisasi</small></span></div>
         <div><span className="sj-proof-icon"><TimerReset size={18} /></span><span><strong>Jejak lintas shift</strong><small>Status dan bukti lebih mudah dicari</small></span></div>
-      </section>
-
-      <section className="sj-section sj-capabilities" id="cara-kerja">
-        <div className="sj-section-heading">
-          <span className="sj-eyebrow">ALUR KERJA YANG TERHUBUNG</span>
-          <h2>Dari laporan menjadi tindak lanjut yang jelas.</h2>
-          <p>Setiap peran melihat pekerjaan yang relevan. Sistem membantu merapikan alur—bukan mengambil alih keputusan perawatan.</p>
-        </div>
-        <div className="sj-capability-grid">
-          {capabilities.map((item) => {
-            const Icon = item.icon;
-            return <article className="sj-capability-card" key={item.number}>
-              <div className="sj-capability-top"><span className="sj-capability-icon"><Icon size={20} /></span><span>{item.number}</span></div>
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
-            </article>;
-          })}
-        </div>
       </section>
 
       <section className="sj-role-section" id="peran">

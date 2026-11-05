@@ -211,11 +211,91 @@ export default function SupervisorDashboardPage({
         </button>
       </div>
 
-      {/* Main Grid: 7 Cols Left (Tugas Prioritas & Graph), 5 Cols Right (Otomasi Control Panel & Kondisi Penghuni) */}
+      {/* Main Grid: 7 Cols Left (Exception Management & Priority Tasks), 5 Cols Right (Otomasi Control Panel) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full items-start">
 
-        {/* Left Column (7 Cols): Compact Priority List & Obligation Graph */}
+        {/* Left Column (7 Cols): Supervisor Exception Management & Priority Tasks */}
         <div className="lg:col-span-7 space-y-4">
+          {/* Supervisor Exception Management Banner (Actionable Exceptions Only - All 7 Required Items) */}
+          <div className="bg-slate-900 text-white rounded-3xl p-5 shadow-lg space-y-3 border border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-5 h-5 text-amber-400" />
+                <h2 className="text-sm font-bold tracking-tight">Supervisor Exception Management</h2>
+              </div>
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                Hanya Menampilkan 7 Poin Pengecualian Kritis (Action-Oriented)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+              {/* 1. Tugas Terlambat */}
+              <div className="bg-slate-950/90 p-2.5 rounded-2xl border border-slate-800">
+                <span className="text-[9px] text-rose-400 font-bold block uppercase">1. Tugas Terlambat</span>
+                <span className="text-base font-extrabold text-white mt-0.5 block">
+                  {obligations.filter(o => o.status === 'breached' || o.status === 'escalated' || (o.valid_until && new Date(o.valid_until) < new Date() && o.status !== 'closed')).length}
+                </span>
+                <span className="text-[8px] text-slate-400">SLA breached</span>
+              </div>
+
+              {/* 2. Bukti Tidak Sesuai */}
+              <div className="bg-slate-950/90 p-2.5 rounded-2xl border border-slate-800">
+                <span className="text-[9px] text-amber-400 font-bold block uppercase">2. Bukti Mismatched</span>
+                <span className="text-base font-extrabold text-white mt-0.5 block">
+                  {obligations.filter(o => o.status === 'rejected' || o.status === 'resubmission_required').length}
+                </span>
+                <span className="text-[8px] text-slate-400">Ditolak / Perlu Ulang</span>
+              </div>
+
+              {/* 3. Identitas Penghuni Ambigu */}
+              <div className="bg-slate-950/90 p-2.5 rounded-2xl border border-slate-800">
+                <span className="text-[9px] text-sky-400 font-bold block uppercase">3. Penghuni Ambigu</span>
+                <span className="text-base font-extrabold text-white mt-0.5 block">
+                  {obligations.filter(o => o.confidence_score && o.confidence_score < 0.85).length}
+                </span>
+                <span className="text-[8px] text-slate-400">OCR Confidence &lt; 85%</span>
+              </div>
+
+              {/* 4. Konflik Informasi */}
+              <div className="bg-slate-950/90 p-2.5 rounded-2xl border border-slate-800">
+                <span className="text-[9px] text-purple-400 font-bold block uppercase">4. Konflik Informasi</span>
+                <span className="text-base font-extrabold text-white mt-0.5 block">
+                  {obligations.filter(o => o.has_conflict || o.is_negative_obligation).length}
+                </span>
+                <span className="text-[8px] text-slate-400">Kontradiksi Epistemik</span>
+              </div>
+
+              {/* 5. Caregiver Tidak Hadir */}
+              <div className="bg-slate-950/90 p-2.5 rounded-2xl border border-slate-800">
+                <span className="text-[9px] text-emerald-400 font-bold block uppercase">5. Staf Tidak Hadir</span>
+                <span className="text-base font-extrabold text-white mt-0.5 block">
+                  {staff.filter(s => s.attendance_status === 'absent' || s.shift_status === 'absent').length}
+                </span>
+                <span className="text-[8px] text-slate-400">Ketidakhadiran Absen</span>
+              </div>
+
+              {/* 6. Risiko Fasilitas Meningkat */}
+              <div className="bg-slate-950/90 p-2.5 rounded-2xl border border-slate-800">
+                <span className="text-[9px] text-orange-400 font-bold block uppercase">6. Risiko Fasilitas</span>
+                <span className="text-base font-extrabold text-white mt-0.5 block">
+                  {obligations.filter(o => o.priority === 'emergency' || o.priority === 'critical').length}
+                </span>
+                <span className="text-[8px] text-slate-400">Eskalasi Darurat</span>
+              </div>
+
+              {/* 7. Persetujuan Klinis Diperlukan (A3) */}
+              <div className="col-span-2 bg-slate-950/90 p-2.5 rounded-2xl border border-slate-800 flex items-center justify-between px-4">
+                <div className="text-left">
+                  <span className="text-[9px] text-teal-400 font-bold block uppercase">7. Approval Klinis A3 Required</span>
+                  <span className="text-[9px] text-slate-400 block">Tindakan berisiko keselamatan lansia</span>
+                </div>
+                <span className="text-base font-extrabold text-white font-mono bg-teal-900/60 border border-teal-500/40 px-3 py-1 rounded-xl">
+                  {obligations.filter(o => o.requires_human_review || o.status === 'waiting_human_approval').length}
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <div className="flex items-center space-x-2">

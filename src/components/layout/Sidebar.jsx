@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import {
   Heart,
   Home,
-  CheckSquare,
+  Users,
   ShieldCheck,
   LogOut,
   Menu,
   X,
   FileSignature,
-  GitPullRequest,
   Cpu,
-  BookOpen,
+  Layers,
+  Lock,
   Wifi,
   WifiOff,
   RefreshCw,
@@ -49,36 +49,32 @@ export default function Sidebar({
     switch (role) {
       case 'caregiver':
         return [
-          { id: 'caregiver_pwa', label: 'Beranda Caregiver', desc: 'Tugas Harian, Camera OCR & Voice', icon: Home, badgeCount: openCount || null },
-          { id: 'handover_contract', label: 'Serah Terima Shift', desc: 'Kontrak Handover Dua Sisi', icon: FileSignature },
-          { id: 'execution_trace', label: 'Execution Trace', desc: 'Inspeksi Alur Keputusan AI', icon: GitPullRequest },
-          { id: 'rule_library', label: 'Aturan Perawatan', desc: 'Protokol & Policy Library', icon: BookOpen },
-          { id: 'audit_trail', label: 'Audit Trail Bukti', desc: 'Log Aset SHA-256', icon: ShieldCheck }
+          { id: 'caregiver_pwa', label: 'Care Dashboard', desc: 'Profil Penghuni, Laporan, Tugas & Foto Bukti', icon: Home, badgeCount: openCount || null },
+          { id: 'workforce', label: 'Workforce', desc: 'Status Shift & Ketersediaan Caregiver', icon: Users },
+          { id: 'handover_contract', label: 'Continuity & Activity', desc: 'Serah Terima Shift, Jejak Keputusan & Audit Trail', icon: FileSignature }
         ];
       case 'supervisor':
         return [
-          { id: 'supervisor_dashboard', label: 'Beranda Triage & Klinis', desc: 'Pengawasan Klinis & A3 Approval', icon: Home, badgeCount: criticalCount || null },
-          { id: 'caregiver_pwa', label: 'Mode Lapangan Caregiver', desc: 'Aksi & Voice Capture Lapangan', icon: CheckSquare, badgeCount: openCount || null },
-          { id: 'handover_contract', label: 'Serah Terima Shift', desc: 'Kontrak Shift Dua Sisi', icon: FileSignature },
-          { id: 'execution_trace', label: 'Execution Trace', desc: 'Inspeksi Alur Keputusan AI', icon: GitPullRequest },
-          { id: 'simulator_lab', label: 'Simulator Lab P4', desc: 'Analisis Kegagalan & HR', icon: Cpu },
-          { id: 'rule_library', label: 'Aturan & Kebijakan Panti', desc: 'Protokol & Library Aturan', icon: BookOpen },
-          { id: 'audit_trail', label: 'Audit Trail Sistem', desc: 'Log Aset SHA-256', icon: ShieldCheck }
+          { id: 'supervisor_dashboard', label: 'Supervisor Center', desc: 'Review Laporan, Bukti, Persetujuan A3 & Eskalasi', icon: ShieldCheck, badgeCount: criticalCount || null },
+          { id: 'caregiver_pwa', label: 'Care Dashboard', desc: 'Pemantauan Tugas Perawatan & Kondisi Lansia', icon: Home, badgeCount: openCount || null },
+          { id: 'workforce', label: 'Workforce', desc: 'Caregiver, Shift, Kompetensi & Ketersediaan Staf', icon: Users },
+          { id: 'family_portal', label: 'Family Portal', desc: 'Tinjauan Izin PDP, Kunjungan & Pengaduan Keluarga', icon: Heart },
+          { id: 'handover_contract', label: 'Continuity & Activity', desc: 'Handover 2 Sisi, Progress & Audit Trail', icon: FileSignature }
         ];
       case 'family':
         return [
-          { id: 'family_portal', label: 'Beranda Wali Pasien', desc: 'Pemantauan Kondisi Pasien', icon: Home },
-          { id: 'rule_library', label: 'Aturan & Kebijakan', desc: 'Transparansi Kebijakan Panti', icon: BookOpen },
-          { id: 'audit_trail', label: 'Audit Trail Transparansi', desc: 'Log Kriptografis Aktivitas Pasien', icon: ShieldCheck }
+          { id: 'family_portal', label: 'Family Care Portal', desc: 'Ringkasan Kemajuan Lansia, Kunjungan & Keluhan', icon: Heart },
+          { id: 'handover_contract', label: 'Continuity & Activity', desc: 'Jurnal Perkembangan Lansia & Audit Trail Transparansi', icon: FileSignature }
         ];
       case 'admin_hr':
       default:
         return [
-          { id: 'simulator_lab', label: 'Simulator Lab P4', desc: 'Analisis Kegagalan & HR', icon: Cpu },
-          { id: 'supervisor_dashboard', label: 'Pengawasan Triage Panti', desc: 'Pengawasan Ringkasan Panti', icon: Home, badgeCount: criticalCount || null },
-          { id: 'handover_contract', label: 'Administrasi Handover', desc: 'Kontrak Shift Staf', icon: FileSignature },
-          { id: 'rule_library', label: 'Manajemen Kebijakan', desc: 'Konfigurasi Aturan & Policy', icon: BookOpen },
-          { id: 'audit_trail', label: 'Audit Trail Sistem', desc: 'Log Aktivitas Sistem', icon: ShieldCheck }
+          { id: 'supervisor_dashboard', label: 'Supervisor Center', desc: 'Pengawasan Triage & Ringkasan Panti', icon: ShieldCheck, badgeCount: criticalCount || null },
+          { id: 'workforce', label: 'Workforce Continuity', desc: 'Absensi, Shift, Onboarding/Offboarding Staf', icon: Users },
+          { id: 'handover_contract', label: 'Continuity & Activity', desc: 'Kontrak Shift, Jejak Keputusan & Audit Trail', icon: FileSignature },
+          { id: 'admin_agent_health', label: 'Agent Health', desc: 'Status 48 Agen dalam 8 Kelompok Orchestrated Mesh', icon: Cpu },
+          { id: 'admin_queue', label: 'Queue Monitor', desc: 'Durable Queue, Outbox & Telemetri Server Scheduler 24/7', icon: Layers },
+          { id: 'admin_security', label: 'Security & Config', desc: 'RLS Tenant Isolation, Audit Trail & Policy A0-A3', icon: Lock }
         ];
     }
   };

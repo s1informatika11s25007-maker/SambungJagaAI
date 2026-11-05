@@ -7,7 +7,7 @@
  * A3: Mandatory Human Supervisor Approval required (clinical decision, evidence sign-off, high-risk reassignment)
  */
 
-import { AGENT_POLICY } from '../../types/core/architecture';
+import { AGENT_POLICY } from '../../types/core/architecture.js';
 
 /**
  * Audit log buffer for agent permission evaluations

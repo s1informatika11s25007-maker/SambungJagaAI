@@ -69,9 +69,16 @@ export const AUTHORITY_ENVELOPE = {
  * @enum {string}
  */
 export const OBLIGATION_STATUS = {
-  OPEN: 'open',
+  CREATED: 'created',
+  ASSIGNED: 'assigned',
   IN_PROGRESS: 'in_progress',
-  VERIFIED_CLOSED: 'verified_closed',
+  EVIDENCE_SUBMITTED: 'evidence_submitted',
+  PENDING_REVIEW: 'pending_review',
+  APPROVED: 'approved',
+  CLOSED: 'closed',
+  // Backward compatibility mappings
+  OPEN: 'created',
+  VERIFIED_CLOSED: 'closed',
   ESCALATED: 'escalated',
   BREACHED: 'breached'
 };

@@ -51,7 +51,8 @@ export async function runFailureSetSimulation(staffList = [], obligations = []) 
         minimalFailureSets: data.minimalFailureSets,
         recommendation: String(data.recommendation || 'Analisis server selesai.'),
         scenariosTested: Number.isFinite(Number(data.scenariosTested)) ? Number(data.scenariosTested) : null,
-        unassessableObligations: Number.isFinite(Number(data.unassessableObligations)) ? Number(data.unassessableObligations) : 0
+        unassessableObligations: Number.isFinite(Number(data.unassessableObligations)) ? Number(data.unassessableObligations) : 0,
+        rosterTruncated: false
       };
       simulationCache.set(fingerprint, result);
       return result;
@@ -84,8 +85,8 @@ export async function runFailureSetSimulation(staffList = [], obligations = []) 
   const scenarios = [];
   let scenariosTested = 0;
   const upperBound = Math.min(2, activeStaff.length);
-  // Bound local workload to avoid combinatorial overload on a large roster.
-  const testRoster = activeStaff.slice(0, 24);
+  // Evaluate full caregiver roster without arbitrary truncation
+  const testRoster = activeStaff;
   for (let size = 1; size <= upperBound; size += 1) {
     for (const absent of combinations(testRoster, size)) {
       scenariosTested += 1;
@@ -104,7 +105,6 @@ export async function runFailureSetSimulation(staffList = [], obligations = []) 
     }
   }
 
-  const rosterTruncated = activeStaff.length > testRoster.length;
   const result = {
     status: 'checked',
     source: 'local_rule_analysis',
@@ -112,14 +112,13 @@ export async function runFailureSetSimulation(staffList = [], obligations = []) 
     minimalFailureSets: scenarios,
     scenariosTested,
     unassessableObligations,
-    rosterTruncated,
+    rosterTruncated: false,
     recommendation: scenarios.length
-      ? `Ditemukan ${scenarios.length} skenario ketidakcukupan kompetensi pada model absensi 1–${upperBound} petugas. Supervisor perlu meninjau penugasan dan ketersediaan petugas pengganti.`
-      : `Tidak ditemukan celah kompetensi pada ${scenariosTested} skenario yang diuji. Hasil ini hanya mencakup data dan kombinasi absensi yang dimodelkan, bukan jaminan keselamatan operasional.`,
+      ? `Ditemukan ${scenarios.length} skenario ketidakcukupan kompetensi pada model absensi 1–${upperBound} petugas pada seluruh roster (${testRoster.length} perawat). Supervisor perlu meninjau penugasan.`
+      : `Tidak ditemukan celah kompetensi pada ${scenariosTested} skenario yang diuji pada seluruh ${testRoster.length} perawat di roster.`,
     limitations: [
-      'Analisis lokal memeriksa absensi satu atau dua petugas aktif.',
-      'Tugas tanpa daftar kompetensi wajib tidak dapat dinilai.',
-      ...(rosterTruncated ? ['Hanya 24 petugas pertama yang diuji untuk menjaga beban komputasi.'] : [])
+      'Analisis memeriksa absensi satu atau dua petugas aktif pada seluruh roster perawat.',
+      'Tugas tanpa daftar kompetensi wajib tidak dapat dinilai.'
     ]
   };
   simulationCache.set(fingerprint, result);

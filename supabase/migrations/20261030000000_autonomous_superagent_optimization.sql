@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS kernel_domain.agent_execution_logs (
     error_message TEXT,
     retry_count INT DEFAULT 0,
     execution_time_ms INT,
+    correlation_id TEXT,
+    idempotency_key TEXT,
     sys_created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     sys_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -100,18 +102,19 @@ BEGIN
     END IF;
 
     -- D. Calculate SHA-256 Audit Trail Hash
-    SELECT COALESCE(payload_hash, v_prev_hash) INTO v_prev_hash
+    SELECT COALESCE(entry_hash, v_prev_hash) INTO v_prev_hash
     FROM audit_domain.audit_trail
-    ORDER BY sequence_number DESC
+    ORDER BY sequence_id DESC
     LIMIT 1;
 
     v_audit_hash := encode(digest(v_fact_id::text || NOW()::text || COALESCE(v_closed_ob_title, 'none'), 'sha256'), 'hex');
 
     INSERT INTO audit_domain.audit_trail (
-        event_type, actor_id, payload_summary, previous_hash, payload_hash, sys_timestamp
+        actor_id, gateway_tag, action_name, payload
     ) VALUES (
-        'FACT_AND_OBLIGATION_RECORDED',
         p_source_actor_id,
+        '[A] Perception & Obligation Gateway',
+        'FACT_AND_OBLIGATION_RECORDED',
         jsonb_build_object(
             'fact_id', v_fact_id,
             'fact_key', p_fact_key,
@@ -119,10 +122,7 @@ BEGIN
             'closed_title', v_closed_ob_title,
             'new_obligations_created', v_new_ob_count,
             'mission_id', v_mission_id
-        ),
-        COALESCE(v_prev_hash, '0000000000000000000000000000000000000000000000000000000000000000'),
-        v_audit_hash,
-        NOW()
+        )
     );
 
     -- E. Return Structured JSON Result

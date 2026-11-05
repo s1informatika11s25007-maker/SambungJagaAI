@@ -3,8 +3,13 @@
  * assigning unassigned work, escalating overdue high-priority work, and inbox cleanup.
  * It never approves care, signs contracts, fabricates evidence, or syncs unsigned offline data.
  */
+
+import { calculateCaregiverWorkload } from '../ai/workforceAgent';
+
 const isOpen = (item) => item.status === 'open' || item.status === 'in_progress';
 const isHighPriority = (item) => item.priority === 'critical' || item.priority === 'emergency';
+
+let autopilotInterval = null;
 
 export function planAutopilot({
   activeRole, obligations = [], notifications = [], staff = [], now = Date.now()
@@ -26,18 +31,27 @@ export function planAutopilot({
     }
 
     const pool = staff.filter((person) => person.role === 'caregiver' && person.shift_status === 'on_duty');
-    const load = Object.fromEntries(pool.map((person) => [person.id, obligations.filter((item) => isOpen(item) && item.assigned_caregiver_id === person.id).length]));
+    const workloadMap = Object.fromEntries(
+      pool.map((person) => {
+        const wl = calculateCaregiverWorkload(person.id, obligations, []);
+        return [person.id, wl.score];
+      })
+    );
+
     const assignments = [];
     obligations.filter((item) => isOpen(item) && !item.assigned_caregiver_id).forEach((item) => {
       const required = Array.isArray(item.required_competencies) ? item.required_competencies : [];
       const eligible = pool.filter((person) => required.every((skill) => (person.competencies || []).includes(skill)));
       if (!eligible.length) return;
-      const selected = eligible.reduce((best, person) => load[person.id] < load[best.id] ? person : best);
-      load[selected.id] += 1;
+
+      // Select caregiver with lowest workload score
+      const selected = eligible.reduce((best, person) => workloadMap[person.id] < workloadMap[best.id] ? person : best);
+      workloadMap[selected.id] += 15;
       assignments.push({ id: item.id, staffId: selected.id });
     });
+
     if (assignments.length) {
-      steps.push({ id: 'assign_unassigned', label: `Alokasikan ${assignments.length} tugas kepada petugas yang memenuhi kualifikasi`, targets: assignments });
+      steps.push({ id: 'assign_unassigned', label: `Alokasikan ${assignments.length} tugas kepada petugas berdasarkan skor beban kerja`, targets: assignments });
     }
   }
 
@@ -74,4 +88,33 @@ export async function executeAutopilot(steps, handlers) {
     ? `${done} dari ${results.length} tindakan tersimpan${done < results.length ? ' — tindakan lain perlu diperiksa manual' : ''}.`
     : 'Tidak ada tindakan operasional yang memenuhi syarat saat ini.';
   return { success: done === results.length, results, summary };
+}
+
+/**
+ * Starts 24/7 autonomous background autopilot execution loop.
+ */
+export function startAutonomousAutopilotLoop(getAppState, handlers, intervalMs = 60000) {
+  if (autopilotInterval) return;
+  autopilotInterval = setInterval(async () => {
+    try {
+      const state = getAppState();
+      if (!state || !state.activeRole) return;
+      const steps = planAutopilot(state);
+      if (steps && steps.length > 0) {
+        await executeAutopilot(steps, handlers);
+      }
+    } catch (err) {
+      console.warn('Autonomous Autopilot loop error:', err);
+    }
+  }, intervalMs);
+}
+
+/**
+ * Stops autonomous autopilot loop.
+ */
+export function stopAutonomousAutopilotLoop() {
+  if (autopilotInterval) {
+    clearInterval(autopilotInterval);
+    autopilotInterval = null;
+  }
 }

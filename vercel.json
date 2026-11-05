@@ -4,8 +4,26 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/api/cron-scheduler",
+      "destination": "/api/cron-scheduler.js"
+    },
+    {
+      "source": "/api/cron-worker",
+      "destination": "/api/cron-worker.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-scheduler",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron-worker",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -1,17 +1,52 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Credentials come from local environment variables. Placeholders allow the UI to
-// render a clear configuration error without embedding any project secrets.
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'http://127.0.0.1:54321';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'public-anon-key-not-configured';
+const getEnvVar = (key) => {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    return import.meta.env[key];
+  }
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key];
+  }
+  return null;
+};
+
+const isPlaceholder = (val) => {
+  if (!val || typeof val !== 'string') return true;
+  const clean = val.trim();
+  return (
+    clean.includes('<your-') ||
+    clean.endsWith('...') ||
+    clean.includes('placeholder')
+  );
+};
+
+export const isSupabaseConfigured = () => {
+  const url = getEnvVar('VITE_SUPABASE_URL') || getEnvVar('SUPABASE_URL');
+  const key = getEnvVar('VITE_SUPABASE_ANON_KEY') || getEnvVar('SUPABASE_ANON_KEY');
+  return Boolean(url && key && !isPlaceholder(url) && !isPlaceholder(key));
+};
+
+const rawUrl = getEnvVar('VITE_SUPABASE_URL') || getEnvVar('SUPABASE_URL');
+const rawKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || getEnvVar('SUPABASE_ANON_KEY');
+
+if (!isSupabaseConfigured()) {
+  console.warn(
+    '⚠️ [Supabase Client Warning] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY tidak dikonfigurasi. Harap isi variabel lingkungan di file .env.'
+  );
+}
+
+const SUPABASE_URL = rawUrl && !isPlaceholder(rawUrl) ? rawUrl : 'http://127.0.0.1:54321';
+const SUPABASE_ANON_KEY = rawKey && !isPlaceholder(rawKey) ? rawKey : 'unconfigured-anon-key';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true },
-  realtime: { params: { eventsPerSecond: 10 } },
+  auth: {
+    persistSession: typeof window !== 'undefined',
+    autoRefreshToken: typeof window !== 'undefined'
+  },
+  realtime: { params: { eventsPerSecond: 10 } }
 });
 
-// supabase-js query builders are thenables without .catch/.finally. The code base
-// chains `.catch(() => {})` on them, which throws a TypeError. Add them once, globally.
+// Polyfill .catch and .finally on query builder thenables
 try {
   const probe = supabase.from('__probe__').select();
   let proto = probe;
@@ -25,7 +60,3 @@ try {
     }
   }
 } catch (e) { /* non-fatal */ }
-
-export const isSupabaseConfigured = () => {
-  return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
-};

@@ -101,24 +101,48 @@ CREATE TRIGGER on_sambungjaga_auth_user_created
 
 -- Public, automatically-updatable views make the internal domain schemas accessible to PostgREST.
 GRANT USAGE ON SCHEMA hr_domain, resident_domain, kernel_domain, audit_domain TO authenticated;
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN SELECT c.relname, c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname IN ('staff_profiles', 'residents', 'bitemporal_obligations', 'epistemic_facts', 'handover_contracts', 'evidence_verifications', 'spot_challenges', 'offline_hash_chains', 'authority_envelopes', 'audit_trail', 'agent_execution_logs', 'family_residents', 'family_obligation_summaries', 'care_rules')
+  LOOP
+    IF r.relkind = 'r' THEN
+      EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', r.relname);
+    ELSIF r.relkind IN ('v', 'm') THEN
+      EXECUTE format('DROP VIEW IF EXISTS public.%I CASCADE', r.relname);
+    END IF;
+  END LOOP;
+END $$;
+
 CREATE OR REPLACE VIEW public.staff_profiles WITH (security_invoker = true) AS
   SELECT * FROM hr_domain.staff_profiles;
+
 CREATE OR REPLACE VIEW public.residents WITH (security_invoker = true) AS
   SELECT * FROM resident_domain.residents;
+
 CREATE OR REPLACE VIEW public.bitemporal_obligations WITH (security_invoker = true) AS
   SELECT * FROM kernel_domain.bitemporal_obligations;
+
 CREATE OR REPLACE VIEW public.epistemic_facts WITH (security_invoker = true) AS
   SELECT * FROM kernel_domain.epistemic_facts;
+
 CREATE OR REPLACE VIEW public.handover_contracts WITH (security_invoker = true) AS
   SELECT * FROM kernel_domain.handover_contracts;
+
 CREATE OR REPLACE VIEW public.evidence_verifications WITH (security_invoker = true) AS
   SELECT * FROM kernel_domain.evidence_verifications;
+
 CREATE OR REPLACE VIEW public.spot_challenges WITH (security_invoker = true) AS
   SELECT * FROM kernel_domain.spot_challenges;
+
 CREATE OR REPLACE VIEW public.offline_hash_chains WITH (security_invoker = true) AS
   SELECT * FROM kernel_domain.offline_hash_chains;
+
 CREATE OR REPLACE VIEW public.authority_envelopes WITH (security_invoker = true) AS
   SELECT * FROM kernel_domain.authority_envelopes;
+
 CREATE OR REPLACE VIEW public.audit_trail WITH (security_invoker = true) AS
   SELECT * FROM audit_domain.audit_trail;
 
@@ -172,69 +196,112 @@ BEGIN
   END LOOP;
 END $$;
 
+DROP POLICY IF EXISTS staff_profiles_read ON hr_domain.staff_profiles;
 CREATE POLICY staff_profiles_read ON hr_domain.staff_profiles FOR SELECT TO authenticated
   USING (user_id = auth.uid() OR public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS staff_profiles_admin_update ON hr_domain.staff_profiles;
 CREATE POLICY staff_profiles_admin_update ON hr_domain.staff_profiles FOR UPDATE TO authenticated
   USING (public.current_sj_role() IN ('supervisor','admin_hr'))
   WITH CHECK (public.current_sj_role() IN ('supervisor','admin_hr'));
 
+DROP POLICY IF EXISTS residents_authorized_read ON resident_domain.residents;
 CREATE POLICY residents_authorized_read ON resident_domain.residents FOR SELECT TO authenticated
   USING (public.sj_can_access_resident(id));
+
+DROP POLICY IF EXISTS residents_admin_insert ON resident_domain.residents;
 CREATE POLICY residents_admin_insert ON resident_domain.residents FOR INSERT TO authenticated
   WITH CHECK (public.current_sj_role() IN ('supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS residents_admin_update ON resident_domain.residents;
 CREATE POLICY residents_admin_update ON resident_domain.residents FOR UPDATE TO authenticated
   USING (public.current_sj_role() IN ('supervisor','admin_hr'))
   WITH CHECK (public.current_sj_role() IN ('supervisor','admin_hr'));
 
+DROP POLICY IF EXISTS obligations_staff_family_read ON kernel_domain.bitemporal_obligations;
 CREATE POLICY obligations_staff_family_read ON kernel_domain.bitemporal_obligations FOR SELECT TO authenticated
   USING (public.sj_can_access_resident(resident_id));
+
+DROP POLICY IF EXISTS obligations_staff_insert ON kernel_domain.bitemporal_obligations;
 CREATE POLICY obligations_staff_insert ON kernel_domain.bitemporal_obligations FOR INSERT TO authenticated
   WITH CHECK (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS obligations_supervisor_update ON kernel_domain.bitemporal_obligations;
 CREATE POLICY obligations_supervisor_update ON kernel_domain.bitemporal_obligations FOR UPDATE TO authenticated
   USING (public.current_sj_role() IN ('supervisor','admin_hr') OR assigned_caregiver_id = (
     SELECT p.id FROM hr_domain.staff_profiles p WHERE p.user_id = auth.uid()
   ))
   WITH CHECK (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
 
+DROP POLICY IF EXISTS facts_staff_read ON kernel_domain.epistemic_facts;
 CREATE POLICY facts_staff_read ON kernel_domain.epistemic_facts FOR SELECT TO authenticated
   USING (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS facts_staff_insert ON kernel_domain.epistemic_facts;
 CREATE POLICY facts_staff_insert ON kernel_domain.epistemic_facts FOR INSERT TO authenticated
   WITH CHECK (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS evidence_staff_read ON kernel_domain.evidence_verifications;
 CREATE POLICY evidence_staff_read ON kernel_domain.evidence_verifications FOR SELECT TO authenticated
   USING (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS evidence_submit_own ON kernel_domain.evidence_verifications;
 CREATE POLICY evidence_submit_own ON kernel_domain.evidence_verifications FOR INSERT TO authenticated
   WITH CHECK (submitter_id = (SELECT p.id FROM hr_domain.staff_profiles p WHERE p.user_id = auth.uid())
     AND public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS evidence_supervisor_update ON kernel_domain.evidence_verifications;
 CREATE POLICY evidence_supervisor_update ON kernel_domain.evidence_verifications FOR UPDATE TO authenticated
   USING (public.current_sj_role() IN ('supervisor','admin_hr'))
   WITH CHECK (public.current_sj_role() IN ('supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS challenges_supervisor_all ON kernel_domain.spot_challenges;
 CREATE POLICY challenges_supervisor_all ON kernel_domain.spot_challenges FOR ALL TO authenticated
   USING (public.current_sj_role() IN ('supervisor','admin_hr'))
   WITH CHECK (public.current_sj_role() IN ('supervisor','admin_hr'));
+
 ALTER TABLE kernel_domain.handover_contracts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kernel_domain.spot_challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kernel_domain.offline_hash_chains ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kernel_domain.authority_envelopes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS handover_staff_read ON kernel_domain.handover_contracts;
 CREATE POLICY handover_staff_read ON kernel_domain.handover_contracts FOR SELECT TO authenticated
   USING (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS handover_create_as_sender ON kernel_domain.handover_contracts;
 CREATE POLICY handover_create_as_sender ON kernel_domain.handover_contracts FOR INSERT TO authenticated
   WITH CHECK (outgoing_staff_id = (SELECT p.id FROM hr_domain.staff_profiles p WHERE p.user_id = auth.uid())
     AND public.current_sj_role() IN ('caregiver','supervisor','admin_hr')
     AND EXISTS (SELECT 1 FROM hr_domain.staff_profiles receiver WHERE receiver.id = incoming_staff_id
       AND receiver.role = 'caregiver' AND receiver.shift_status = 'on_duty'));
+
+DROP POLICY IF EXISTS authority_staff_read ON kernel_domain.authority_envelopes;
 CREATE POLICY authority_staff_read ON kernel_domain.authority_envelopes FOR SELECT TO authenticated
   USING (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS audit_staff_read ON audit_domain.audit_trail;
 CREATE POLICY audit_staff_read ON audit_domain.audit_trail FOR SELECT TO authenticated
   USING (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS audit_staff_insert ON audit_domain.audit_trail;
 CREATE POLICY audit_staff_insert ON audit_domain.audit_trail FOR INSERT TO authenticated
   WITH CHECK (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS notifications_own_role_read ON public.notifications;
 CREATE POLICY notifications_own_role_read ON public.notifications FOR SELECT TO authenticated
   USING (recipient_role = public.current_sj_role());
+
+DROP POLICY IF EXISTS notifications_own_role_insert ON public.notifications;
 CREATE POLICY notifications_own_role_insert ON public.notifications FOR INSERT TO authenticated
   WITH CHECK (recipient_role = public.current_sj_role() OR (public.current_sj_role() = 'caregiver' AND recipient_role = 'supervisor') OR public.current_sj_role() IN ('supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS notifications_role_update ON public.notifications;
 CREATE POLICY notifications_role_update ON public.notifications FOR UPDATE TO authenticated
   USING (recipient_role = public.current_sj_role() OR public.current_sj_role() IN ('supervisor','admin_hr'))
   WITH CHECK (recipient_role = public.current_sj_role() OR (public.current_sj_role() = 'caregiver' AND recipient_role = 'supervisor') OR public.current_sj_role() IN ('supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS notifications_role_delete ON public.notifications;
 CREATE POLICY notifications_role_delete ON public.notifications FOR DELETE TO authenticated
   USING (recipient_role = public.current_sj_role() OR public.current_sj_role() IN ('supervisor','admin_hr'));
 
@@ -341,10 +408,16 @@ CREATE TABLE IF NOT EXISTS kernel_domain.care_rules (
 ALTER TABLE kernel_domain.care_rules ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA kernel_domain TO authenticated;
 CREATE INDEX IF NOT EXISTS idx_care_rules_status_created ON kernel_domain.care_rules(status, created_at DESC);
+
+DROP POLICY IF EXISTS care_rules_staff_read ON kernel_domain.care_rules;
 CREATE POLICY care_rules_staff_read ON kernel_domain.care_rules FOR SELECT TO authenticated
   USING (public.current_sj_role() IN ('caregiver','supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS care_rules_supervisor_insert ON kernel_domain.care_rules;
 CREATE POLICY care_rules_supervisor_insert ON kernel_domain.care_rules FOR INSERT TO authenticated
   WITH CHECK (public.current_sj_role() IN ('supervisor','admin_hr'));
+
+DROP POLICY IF EXISTS care_rules_supervisor_update ON kernel_domain.care_rules;
 CREATE POLICY care_rules_supervisor_update ON kernel_domain.care_rules FOR UPDATE TO authenticated
   USING (public.current_sj_role() IN ('supervisor','admin_hr'))
   WITH CHECK (public.current_sj_role() IN ('supervisor','admin_hr'));
@@ -376,7 +449,7 @@ DECLARE
   v_new_ob_count INTEGER := 0;
   v_mission_id UUID := gen_random_uuid();
   v_prop JSONB;
-  v_priority kernel_domain.obligation_priority;
+  v_priority public.obligation_priority;
 BEGIN
   INSERT INTO kernel_domain.epistemic_facts (
     resident_id, fact_key, fact_value, status, confidence_score, source_type, source_actor_id, observed_at
@@ -390,9 +463,9 @@ BEGIN
     LOOP
       v_priority := CASE
         WHEN v_prop->>'priority' IN ('emergency','critical','important','routine')
-          THEN (v_prop->>'priority')::kernel_domain.obligation_priority
-        WHEN v_prop->>'priority' = 'urgent' THEN 'important'::kernel_domain.obligation_priority
-        ELSE 'routine'::kernel_domain.obligation_priority
+          THEN (v_prop->>'priority')::public.obligation_priority
+        WHEN v_prop->>'priority' = 'urgent' THEN 'important'::public.obligation_priority
+        ELSE 'routine'::public.obligation_priority
       END;
       IF NULLIF(BTRIM(v_prop->>'title'), '') IS NULL THEN CONTINUE; END IF;
       INSERT INTO kernel_domain.bitemporal_obligations (

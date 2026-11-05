@@ -8,9 +8,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "vite build --mode development",
+    "lint:check": "eslint src --ext .js,.jsx --max-warnings 10",
+    "security:audit": "npm audit",
     "test": "vitest run && playwright test",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "server:start": "node scripts/run-server-daemon.js",
+    "server:worker": "node scripts/server-worker.js",
+    "server:scheduler": "node scripts/server-scheduler.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
@@ -31,6 +36,10 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.6",
     "happy-dom": "^21.0.4",
     "jsdom": "^30.1.3",
     "pg": "^8.23.1",

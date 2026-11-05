@@ -22,20 +22,39 @@ import FamilyPortalPage from './pages/family/FamilyPortalPage';
 import SimulatorLabPage from './pages/simulator/SimulatorLabPage';
 import RuleLibraryPage from './pages/rule/RuleLibraryPage';
 import AuditTrailPage from './pages/audit/AuditTrailPage';
+import WorkforcePage from './pages/workforce/WorkforcePage';
+import AdminAgentHealthPage from './pages/admin/AdminAgentHealthPage';
+import AdminQueueMonitorPage from './pages/admin/AdminQueueMonitorPage';
+import AdminSecurityConfigPage from './pages/admin/AdminSecurityConfigPage';
+
 import ExecutionTraceModal from './components/trace/ExecutionTraceModal';
 import { supabase } from './supabase/client/client';
 import { getAuthenticatedAccount, signOutUser } from './services/auth/authService';
 
 const PAGE_TITLES = {
-  caregiver_pwa: 'Tugas & Laporan',
-  supervisor_dashboard: 'Pengawasan Klinis',
-  handover_contract: 'Serah Terima Shift',
+  caregiver_pwa: 'Care Dashboard',
+  supervisor_dashboard: 'Supervisor Center',
+  workforce: 'Workforce Continuity',
+  handover_contract: 'Continuity & Activity',
   execution_trace: 'Jejak Keputusan AI',
-  family_portal: 'Portal Keluarga',
+  family_portal: 'Family Care Portal',
   simulator_lab: 'Simulator & Analisis',
   rule_library: 'Aturan & Kebijakan',
-  audit_trail: 'Audit Trail'
+  audit_trail: 'Audit Trail',
+  admin_agent_health: 'Agent Health Monitor',
+  admin_queue: 'Queue Monitor',
+  admin_security: 'Security & Configuration'
 };
+
+/**
+ * Reusable Protected App Route Component with Strict Role Matrix Guards
+ */
+function ProtectedAppRoute({ userRole, allowedRoles, fallbackPath, children }) {
+  if (!allowedRoles.includes(userRole)) {
+    return <Navigate to={fallbackPath} replace />;
+  }
+  return children;
+}
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -46,7 +65,6 @@ export default function App() {
 
   const {
     activeRole,
-    setActiveRole,
     currentUser,
     loginUserAccount,
     logoutUserAccount,
@@ -148,7 +166,7 @@ export default function App() {
     setIsLoggedIn(true);
     if (accountObj.role === 'caregiver') navigate('/app/caregiver_pwa');
     else if (accountObj.role === 'family') navigate('/app/family_portal');
-    else if (accountObj.role === 'admin_hr') navigate('/app/simulator_lab');
+    else if (accountObj.role === 'admin_hr') navigate('/app/supervisor_dashboard');
     else navigate('/app/supervisor_dashboard');
   };
 
@@ -164,7 +182,7 @@ export default function App() {
     : activeRole === 'family'
       ? 'family_portal'
       : activeRole === 'admin_hr'
-        ? 'simulator_lab'
+        ? 'supervisor_dashboard'
         : 'supervisor_dashboard';
   const defaultPath = `/app/${defaultWorkspace}`;
 
@@ -228,7 +246,6 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         ) : isLoading ? (
-          // Elegant loading animation when logged in but data is fetching
           <Route path="*" element={<GlobalLoader />} />
         ) : (
           <Route
@@ -236,7 +253,7 @@ export default function App() {
             element={
               <div className="flex flex-col md:flex-row min-h-screen w-full overflow-x-hidden">
                 <Sidebar
-                  activeTab={location.pathname.replace('/app/', '') || (activeRole === 'caregiver' ? 'caregiver_pwa' : activeRole === 'family' ? 'family_portal' : activeRole === 'admin_hr' ? 'simulator_lab' : 'supervisor_dashboard')}
+                  activeTab={location.pathname.replace('/app/', '') || defaultWorkspace}
                   setActiveTab={(tab) => navigate(`/app/${tab}`)}
                   activeRole={activeRole}
                   currentUser={currentUser}
@@ -260,109 +277,194 @@ export default function App() {
                     title={PAGE_TITLES[location.pathname.replace('/app/', '')] || 'Ruang Kerja'}
                   />
                   <main className="sj-app-main">
-                    {location.pathname.replace('/app/', '') === 'supervisor_dashboard' && ['supervisor', 'admin_hr'].includes(activeRole) && <CommandCenter
-                      activeRole={activeRole}
-                      currentUser={currentUser}
-                      obligations={obligations}
-                      residents={residents}
-                      autopilotPlan={autopilotPlan}
-                      onRunAutopilot={runAutopilot}
-                      onCommand={(text) => captureCareReport({
-                        text,
-                        sourceType: 'text',
-                        residentId: 'auto',
-                        actorName: currentUser?.name || currentUser?.full_name || activeRole
-                      })}
-                    />}
+                    {location.pathname.replace('/app/', '') === 'supervisor_dashboard' && ['supervisor', 'admin_hr'].includes(activeRole) && (
+                      <CommandCenter
+                        activeRole={activeRole}
+                        currentUser={currentUser}
+                        obligations={obligations}
+                        residents={residents}
+                        autopilotPlan={autopilotPlan}
+                        onRunAutopilot={runAutopilot}
+                        onCommand={(text) => captureCareReport({
+                          text,
+                          sourceType: 'text',
+                          residentId: 'auto',
+                          actorName: currentUser?.name || currentUser?.full_name || activeRole
+                        })}
+                      />
+                    )}
                     <Routes>
                       <Route index element={<Navigate to={defaultPath} replace />} />
+
+                      {/* Caregiver Mobile Dashboard: Accessible by caregiver, supervisor, admin_hr */}
                       <Route
                         path="caregiver_pwa"
                         element={
-                          activeRole !== 'caregiver' ? <Navigate to={defaultPath} replace /> : <CaregiverMobilePage
-                            residents={residents}
-                            obligations={obligations}
-                            onCaptureSubmit={captureCareReport}
-                            onSubmitEvidence={submitEvidenceAndClose}
-                            onOpenTraceModal={setSelectedTrace}
-                            isOffline={isOffline}
-                            offlineQueue={offlineQueue}
-                            currentUser={currentUser}
-                          />
+                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <CaregiverMobilePage
+                              residents={residents}
+                              obligations={obligations}
+                              onCaptureSubmit={captureCareReport}
+                              onSubmitEvidence={submitEvidenceAndClose}
+                              onOpenTraceModal={setSelectedTrace}
+                              isOffline={isOffline}
+                              offlineQueue={offlineQueue}
+                              currentUser={currentUser}
+                            />
+                          </ProtectedAppRoute>
                         }
                       />
+
+                      {/* Workforce Page: Accessible by caregiver, supervisor, admin_hr (Family restricted) */}
+                      <Route
+                        path="workforce"
+                        element={
+                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <WorkforcePage
+                              staff={staff}
+                              residents={residents}
+                              obligations={obligations}
+                              userRole={activeRole}
+                              currentUser={currentUser}
+                            />
+                          </ProtectedAppRoute>
+                        }
+                      />
+
+                      {/* Supervisor Dashboard: Accessible by supervisor & admin_hr */}
                       <Route
                         path="supervisor_dashboard"
                         element={
-                          activeRole === 'family' ? <Navigate to="/app/family_portal" replace /> : activeRole === 'caregiver' ? <Navigate to="/app/caregiver_pwa" replace /> : <SupervisorDashboardPage
-                            obligations={obligations}
-                            epistemicFacts={epistemicFacts}
-                            residents={residents}
-                            staff={staff}
-                            currentUser={currentUser}
-                            spotChallenges={spotChallenges}
-                            onSubmitEvidence={submitEvidenceAndClose}
-                            onApproveAction={approveAuthorityAction}
-                            onCreateObligation={createObligation}
-                            onOpenTraceModal={setSelectedTrace}
-                            setActiveTab={(tab) => navigate(`/app/${tab}`)}
-                            onRunAutopilot={runAutopilot}
-                            autopilotPlan={autopilotPlan}
-                          />
+                          <ProtectedAppRoute allowedRoles={['supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <SupervisorDashboardPage
+                              obligations={obligations}
+                              epistemicFacts={epistemicFacts}
+                              residents={residents}
+                              staff={staff}
+                              currentUser={currentUser}
+                              spotChallenges={spotChallenges}
+                              onSubmitEvidence={submitEvidenceAndClose}
+                              onApproveAction={approveAuthorityAction}
+                              onCreateObligation={createObligation}
+                              onOpenTraceModal={setSelectedTrace}
+                              setActiveTab={(tab) => navigate(`/app/${tab}`)}
+                              onRunAutopilot={runAutopilot}
+                              autopilotPlan={autopilotPlan}
+                            />
+                          </ProtectedAppRoute>
                         }
                       />
+
+                      {/* Handover Contract: Accessible by caregiver, supervisor, admin_hr (Family restricted) */}
                       <Route
                         path="handover_contract"
                         element={
-                          activeRole === 'family' ? <Navigate to="/app/family_portal" replace /> : <HandoverPage
-                            handoverContracts={handoverContracts}
-                            onSignContract={signHandoverContract}
-                            onCreateContract={createHandoverContract}
-                            currentUserRole={activeRole}
-                            currentUser={currentUser}
-                            staff={staff}
-                            obligations={obligations}
-                            residents={residents}
-                          />
+                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <HandoverPage
+                              handoverContracts={handoverContracts}
+                              onSignContract={signHandoverContract}
+                              onCreateContract={createHandoverContract}
+                              currentUserRole={activeRole}
+                              currentUser={currentUser}
+                              staff={staff}
+                              obligations={obligations}
+                              residents={residents}
+                            />
+                          </ProtectedAppRoute>
                         }
                       />
+
+                      {/* Execution Trace: Accessible by caregiver, supervisor, admin_hr */}
                       <Route
                         path="execution_trace"
                         element={
-                          activeRole === 'family' ? <Navigate to="/app/family_portal" replace /> : <ExecutionTracePage
-                            obligations={obligations}
-                            onOpenTraceModal={setSelectedTrace}
-                          />
+                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <ExecutionTracePage
+                              obligations={obligations}
+                              onOpenTraceModal={setSelectedTrace}
+                            />
+                          </ProtectedAppRoute>
                         }
                       />
+
+                      {/* Family Portal: Accessible by family, supervisor, admin_hr */}
                       <Route
                         path="family_portal"
                         element={
-                          activeRole !== 'family' ? <Navigate to={defaultPath} replace /> : <FamilyPortalPage
-                            residents={residents}
-                            obligations={obligations}
-                            epistemicFacts={epistemicFacts}
-                          />
+                          <ProtectedAppRoute allowedRoles={['family', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <FamilyPortalPage
+                              currentUser={currentUser}
+                              residents={residents}
+                              obligations={obligations}
+                              epistemicFacts={epistemicFacts}
+                            />
+                          </ProtectedAppRoute>
                         }
                       />
+
+                      {/* Simulator Lab: Accessible by supervisor & admin_hr */}
                       <Route
                         path="simulator_lab"
-                        element={activeRole === 'family' || activeRole === 'caregiver' ? <Navigate to={defaultPath} replace /> : <SimulatorLabPage staff={staff} obligations={obligations} />}
+                        element={
+                          <ProtectedAppRoute allowedRoles={['supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <SimulatorLabPage staff={staff} obligations={obligations} />
+                          </ProtectedAppRoute>
+                        }
                       />
+
+                      {/* Rule Library: Accessible by caregiver, supervisor, admin_hr */}
                       <Route
                         path="rule_library"
                         element={
-                          activeRole === 'family' ? <Navigate to="/app/family_portal" replace /> : <RuleLibraryPage
-                            rules={rules}
-                            setRules={setRules}
-                            activeRole={activeRole}
-                            currentUser={currentUser}
-                            obligations={obligations}
-                            epistemicFacts={epistemicFacts}
-                          />
+                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <RuleLibraryPage
+                              rules={rules}
+                              setRules={setRules}
+                              activeRole={activeRole}
+                              currentUser={currentUser}
+                              obligations={obligations}
+                              epistemicFacts={epistemicFacts}
+                            />
+                          </ProtectedAppRoute>
                         }
                       />
-                      <Route path="audit_trail" element={['supervisor', 'admin_hr'].includes(activeRole) ? <AuditTrailPage auditTrail={auditTrail} /> : <Navigate to={defaultPath} replace />} />
+
+                      {/* Audit Trail: Accessible by supervisor & admin_hr */}
+                      <Route
+                        path="audit_trail"
+                        element={
+                          <ProtectedAppRoute allowedRoles={['supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <AuditTrailPage auditTrail={auditTrail} />
+                          </ProtectedAppRoute>
+                        }
+                      />
+
+                      {/* Admin Specific Routes: Accessible by admin_hr & supervisor */}
+                      <Route
+                        path="admin_agent_health"
+                        element={
+                          <ProtectedAppRoute allowedRoles={['admin_hr', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <AdminAgentHealthPage />
+                          </ProtectedAppRoute>
+                        }
+                      />
+                      <Route
+                        path="admin_queue"
+                        element={
+                          <ProtectedAppRoute allowedRoles={['admin_hr', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <AdminQueueMonitorPage />
+                          </ProtectedAppRoute>
+                        }
+                      />
+                      <Route
+                        path="admin_security"
+                        element={
+                          <ProtectedAppRoute allowedRoles={['admin_hr', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
+                            <AdminSecurityConfigPage />
+                          </ProtectedAppRoute>
+                        }
+                      />
+
                       <Route
                         path="*"
                         element={<Navigate to={defaultPath} replace />}

@@ -12,6 +12,11 @@ function withTimeout(promise, ms = AUTH_TIMEOUT_MS) {
 
 function normalizeProfile(profile, authUser) {
   if (!profile || !authUser) return null;
+  // Strict Deactivated / Inactive Account Guard
+  if (profile.is_active === false || profile.status === 'inactive' || profile.status === 'deactivated') {
+    return null;
+  }
+
   const role = profile.role || 'caregiver';
   return {
     id: profile.id,
@@ -24,7 +29,8 @@ function normalizeProfile(profile, authUser) {
     email: authUser.email || '',
     avatar: profile.avatar_url || '',
     competencies: profile.competencies || [],
-    phone: profile.phone_number || ''
+    phone: profile.phone_number || '',
+    is_active: profile.is_active !== false
   };
 }
 
@@ -34,6 +40,9 @@ export async function getAuthenticatedAccount(authUser) {
     supabase.from('staff_profiles').select('*').eq('user_id', authUser.id).maybeSingle()
   );
   if (error) throw error;
+  if (data && (data.is_active === false || data.status === 'inactive' || data.status === 'deactivated')) {
+    throw new Error('Akun Anda telah dinonaktifkan oleh administrator fasilitas. Akses masuk ditolak.');
+  }
   return normalizeProfile(data, authUser);
 }
 
@@ -44,12 +53,18 @@ export async function signInWithEmailPassword(email, password) {
     supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
   );
   if (error) throw error;
-  const account = await getAuthenticatedAccount(data.user);
-  if (!account) {
+
+  try {
+    const account = await getAuthenticatedAccount(data.user);
+    if (!account) {
+      await supabase.auth.signOut();
+      throw new Error('Akun berhasil diverifikasi, tetapi profil SambungJaga tidak aktif atau belum tersedia. Hubungi administrator fasilitas.');
+    }
+    return account;
+  } catch (accErr) {
     await supabase.auth.signOut();
-    throw new Error('Akun berhasil diverifikasi, tetapi profil SambungJaga belum tersedia. Hubungi administrator fasilitas.');
+    throw accErr;
   }
-  return account;
 }
 
 export async function signUpWithEmailPassword({ fullName, email, password, phone, role }) {
@@ -88,6 +103,7 @@ export async function signOutUser() {
 
 export function getAuthErrorMessage(error) {
   const message = String(error?.message || '').toLowerCase();
+  if (message.includes('dinonaktifkan')) return 'Akun Anda telah dinonaktifkan oleh administrator fasilitas. Hubungi HR/Supervisor.';
   if (message.includes('invalid login credentials')) return 'Email atau kata sandi tidak sesuai.';
   if (message.includes('email not confirmed')) return 'Email belum diverifikasi. Buka tautan konfirmasi di kotak masuk email Anda.';
   if (message.includes('user already registered')) return 'Email ini sudah terdaftar. Silakan masuk.';

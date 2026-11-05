@@ -58,20 +58,29 @@ export default function RegisterPage({ onRegisterSuccess, onGoToLogin, onGoToLan
           alt="Pemandangan alam untuk halaman pendaftaran SambungJaga"
           className="sj-auth-photo"
         />
-        <div className="sj-auth-visual-top">
-          <button type="button" onClick={onGoToLanding} className="sj-brand-lockup sj-brand-light">
-            <span className="sj-brand-mark"><Heart size={21} fill="currentColor" /></span>
-            <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
-          </button>
-          <button type="button" onClick={onGoToLanding} className="sj-back-link"><ArrowLeft size={16} /> Beranda</button>
+        <div className="sj-auth-visual-top-container">
+          <div className="sj-auth-visual-top">
+            <button type="button" onClick={onGoToLanding} className="sj-brand-lockup sj-brand-light">
+              <span className="sj-brand-mark"><Heart size={21} fill="currentColor" /></span>
+              <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
+            </button>
+            <button type="button" onClick={onGoToLanding} className="sj-back-link"><ArrowLeft size={16} /> Beranda</button>
+          </div>
+          <div className="sj-auth-badge-wrap animate-fade-up">
+            <span className="sj-eyebrow sj-eyebrow-light"><ShieldCheck size={14} /> MEMULAI DENGAN AMAN</span>
+          </div>
         </div>
-        <div className="sj-auth-story animate-fade-up">
-          <span className="sj-eyebrow sj-eyebrow-light"><ShieldCheck size={14} /> MEMULAI DENGAN AMAN</span>
-          <h1>Kolaborasi perawatan dimulai dari <em>akses yang tepat.</em></h1>
-          <p>Buat identitas akun terlebih dahulu. Hak akses mengikuti peran yang diverifikasi dan relasi penghuni yang diberikan fasilitas.</p>
-          <div className="sj-auth-callout"><LockKeyhole size={18} /><span>Supervisor dan Admin dibuat melalui undangan administrator untuk mencegah peningkatan hak akses mandiri.</span></div>
+
+        <div className="sj-auth-visual-bottom animate-fade-up">
+          <div className="sj-auth-visual-bottom-text">
+            <h2>Kolaborasi perawatan dengan <em>akses yang tepat.</em></h2>
+            <p>Integrasi aman untuk perawat dan keluarga dalam satu platform.</p>
+          </div>
+          <div className="sj-auth-visual-footer">
+            <span>Privasi & keamanan terjamin</span>
+            <span>02 / 02</span>
+          </div>
         </div>
-        <div className="sj-auth-visual-footer"><span>Privasi dan tanggung jawab tetap diutamakan.</span><span>02 / 03</span></div>
       </section>
 
       <section className="sj-auth-panel">

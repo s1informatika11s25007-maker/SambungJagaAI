@@ -6,6 +6,7 @@ modellist.md
 .env
 .env.*
 *.env
+!.env.example
 
 # Supabase CLI temp files
 supabase/.temp/

@@ -34,25 +34,66 @@ export function cleanTranscriptText(raw = '') {
  * Finds matching resident candidates for ambiguity resolution with strict similarity rules.
  */
 export function findResidentCandidates(text = '', residents = []) {
+  const candidates = findResidentCandidatesWithConfidenceScore(text, residents);
+  return candidates.map(c => c.resident);
+}
+
+/**
+ * Multi-Factor Entity Resolution with Confidence Scoring (0.00 to 1.00).
+ * Flags candidate if confidence < 0.85 for required human verification.
+ */
+export function findResidentCandidatesWithConfidenceScore(text = '', residents = []) {
   const clean = text.toLowerCase().trim();
   if (!clean || !residents.length) return [];
 
-  const matched = residents.filter((resident) => {
-    const name = String(resident.full_name || '').toLowerCase().trim();
+  return residents.map((resident) => {
+    const fullName = String(resident.full_name || '').toLowerCase().trim();
     const room = String(resident.room_number || '').toLowerCase().trim();
-    const nameParts = name.split(/\s+/).filter((p) => p.length > 2);
+    const condition = String(resident.medical_condition_summary || '').toLowerCase().trim();
+    const nameParts = fullName.split(/\s+/).filter(p => p.length >= 3);
 
-    // Exact full name or room match takes absolute priority
-    const matchesFullName = name.length > 3 && clean.includes(name);
-    const matchesRoom = room.length > 0 && (clean.includes(`kamar ${room}`) || clean.includes(`wisma ${room}`) || clean.includes(room));
+    let score = 0.0;
+    const matchReasons = [];
 
-    // Part match requires string length > 3 to avoid false positives (e.g., 'bu', 'pak', 'di')
-    const matchesPart = nameParts.some((part) => part.length >= 4 && clean.includes(part));
+    // 1. Full name exact match (+0.95)
+    if (fullName.length >= 3 && clean.includes(fullName)) {
+      score += 0.95;
+      matchReasons.push('exact_full_name');
+    } else {
+      // Partial name parts match
+      let partScore = 0;
+      for (const part of nameParts) {
+        if (clean.includes(part)) {
+          partScore += (part.length / fullName.length) * 0.50 + 0.35;
+          matchReasons.push(`partial_name_${part}`);
+        }
+      }
+      score += Math.min(0.75, partScore);
+    }
 
-    return matchesFullName || matchesRoom || matchesPart;
-  });
+    // 2. Room number match (+0.85)
+    if (room && (clean.includes(`kamar ${room}`) || clean.includes(`wisma ${room}`) || clean.includes(`rm ${room}`) || clean.includes(room))) {
+      score += 0.85;
+      matchReasons.push('room_number');
+    }
 
-  return matched;
+    // 3. Medical condition match (+0.20)
+    if (condition && clean.includes(condition)) {
+      score += 0.20;
+      matchReasons.push('condition_keyword');
+    }
+
+    const finalScore = Math.min(1.00, Number(score.toFixed(2)));
+    const requiresHumanVerification = finalScore < 0.85;
+
+    return {
+      resident,
+      confidenceScore: finalScore,
+      matchReasons,
+      requiresHumanVerification
+    };
+  }).filter(c => c.confidenceScore >= 0.30)
+    .sort((a, b) => b.confidenceScore - a.confidenceScore);
 }
 
 /**

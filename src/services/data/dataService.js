@@ -74,3 +74,53 @@ export function enrichObligations(obligations = [], residents = [], staff = []) 
     assigned_caregiver_name: staff.find((person) => person.id === obligation.assigned_caregiver_id)?.full_name || obligation.assigned_caregiver_name || null
   }));
 }
+
+/**
+ * Safe conditional status update using optimistic concurrency controls.
+ * Prevents escalations or status updates from overwriting already closed/verified tasks!
+ */
+export async function updateObligationStatus(obligationId, newStatus) {
+  try {
+    const { data, error } = await supabase
+      .from('bitemporal_obligations')
+      .update({
+        status: newStatus,
+        sys_superseded_at: new Date().toISOString()
+      })
+      .eq('id', obligationId)
+      .in('status', ['open', 'in_progress', 'escalated'])
+      .select()
+      .single();
+
+    if (!error && data) {
+      return { success: true, updated: data };
+    }
+  } catch (err) {
+    console.warn('[Safe Conditional Update] Error:', err);
+  }
+  return { success: false, error: 'Tugas telah ditutup atau diubah oleh pengguna lain.' };
+}
+
+/**
+ * Assigns or reallocates a caregiver on a bitemporal obligation.
+ */
+export async function assignObligationCaregiver(obligationId, caregiverId) {
+  try {
+    const { data, error } = await supabase
+      .from('bitemporal_obligations')
+      .update({
+        assigned_caregiver_id: caregiverId,
+        sys_superseded_at: new Date().toISOString()
+      })
+      .eq('id', obligationId)
+      .select()
+      .single();
+
+    if (!error && data) {
+      return { success: true, updated: data };
+    }
+  } catch (err) {
+    console.warn('[Assign Caregiver] Error:', err);
+  }
+  return { success: false, error: 'Gagal mengalokasikan caregiver pada kewajiban ini.' };
+}

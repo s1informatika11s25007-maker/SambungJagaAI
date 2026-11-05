@@ -260,7 +260,7 @@ export default function HandoverContractCard({
             <p className="text-[11px] text-slate-500">Anda masuk sebagai {signerRole === 'outgoing' ? 'pengirim' : 'penerima'} yang terdaftar pada kontrak ini.</p>
             <button type="button" onClick={handleSign} disabled={isSigning} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:opacity-50">
               {isSigning ? <Activity className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
-              {isSigning ? 'Menyimpan tanda tangan…' : `Tandatangani sebagai ${signerRole === 'outgoing' ? 'pengirim' : 'penerima'}`}
+              {isSigning ? 'Menyimpan tanda tangan…' : (signerRole === 'incoming' ? 'Konfirmasi & Tanda Tangan Penerima Shift' : 'Konfirmasi & Tanda Tangan Pengirim Shift')}
             </button>
           </div>
           {signMessage && <p role="status" className="mt-2 text-[11px] text-slate-600">{signMessage}</p>}

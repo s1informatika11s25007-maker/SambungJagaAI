@@ -17,9 +17,13 @@ CREATE SCHEMA IF NOT EXISTS audit_domain;
 -- ------------------------------------------------------------------------------
 -- 1. AKTOR & PROFIL (Identity, RBAC)
 -- ------------------------------------------------------------------------------
-CREATE TYPE user_role AS ENUM ('caregiver', 'supervisor', 'family', 'admin_hr');
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM ('caregiver', 'supervisor', 'family', 'admin_hr');
+    END IF;
+END $$;
 
-CREATE TABLE hr_domain.staff_profiles (
+CREATE TABLE IF NOT EXISTS hr_domain.staff_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
@@ -31,7 +35,7 @@ CREATE TABLE hr_domain.staff_profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE resident_domain.residents (
+CREATE TABLE IF NOT EXISTS resident_domain.residents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     full_name TEXT NOT NULL,
     room_number TEXT NOT NULL,
@@ -45,9 +49,13 @@ CREATE TABLE resident_domain.residents (
 -- 2. P3 · EPISTEMIC FACT LEDGER (Persepsi & Pengetahuan)
 -- Epistemic State: observed (diamati), reported (dilaporkan), inferred (disimpulkan), contradicted (dikontradiksi), stale (basi)
 -- ------------------------------------------------------------------------------
-CREATE TYPE epistemic_status AS ENUM ('observed', 'reported', 'inferred', 'contradicted', 'stale');
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'epistemic_status') THEN
+        CREATE TYPE epistemic_status AS ENUM ('observed', 'reported', 'inferred', 'contradicted', 'stale');
+    END IF;
+END $$;
 
-CREATE TABLE kernel_domain.epistemic_facts (
+CREATE TABLE IF NOT EXISTS kernel_domain.epistemic_facts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     resident_id UUID NOT NULL REFERENCES resident_domain.residents(id) ON DELETE CASCADE,
     fact_key TEXT NOT NULL, -- e.g. "blood_pressure", "breakfast_intake", "pain_level"
@@ -65,10 +73,19 @@ CREATE TABLE kernel_domain.epistemic_facts (
 -- 3. P1 · BITEMPORAL OBLIGATION LEDGER & CARE OBLIGATION GRAPH
 -- Bitemporal: Valid Time (waktu berlaku klinis) vs Transaction Time (waktu dicatat di DB)
 -- ------------------------------------------------------------------------------
-CREATE TYPE obligation_status AS ENUM ('open', 'in_progress', 'verified_closed', 'escalated', 'canceled', 'breached');
-CREATE TYPE obligation_priority AS ENUM ('routine', 'important', 'critical', 'emergency');
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'obligation_status') THEN
+        CREATE TYPE obligation_status AS ENUM ('open', 'in_progress', 'verified_closed', 'escalated', 'canceled', 'breached');
+    END IF;
+END $$;
 
-CREATE TABLE kernel_domain.bitemporal_obligations (
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'obligation_priority') THEN
+        CREATE TYPE obligation_priority AS ENUM ('routine', 'important', 'critical', 'emergency');
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS kernel_domain.bitemporal_obligations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     mission_id UUID NOT NULL, -- Care Mission Orchestrator Mission ID
     resident_id UUID NOT NULL REFERENCES resident_domain.residents(id) ON DELETE CASCADE,
@@ -101,7 +118,7 @@ CREATE TABLE kernel_domain.bitemporal_obligations (
 -- 4. P2 · EVIDENCE-GRADE VERIFICATION & SPOT CHALLENGES
 -- Evidence Grade: E0 (Claim), E1 (Artifact/Photo/QR), E2 (2nd Person Confirmation), E3 (IoT/Sensor System)
 -- ------------------------------------------------------------------------------
-CREATE TABLE kernel_domain.evidence_verifications (
+CREATE TABLE IF NOT EXISTS kernel_domain.evidence_verifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     obligation_id UUID NOT NULL REFERENCES kernel_domain.bitemporal_obligations(id) ON DELETE CASCADE,
     submitter_id UUID NOT NULL REFERENCES hr_domain.staff_profiles(id),
@@ -113,7 +130,7 @@ CREATE TABLE kernel_domain.evidence_verifications (
     verified_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE kernel_domain.spot_challenges (
+CREATE TABLE IF NOT EXISTS kernel_domain.spot_challenges (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     evidence_id UUID NOT NULL REFERENCES kernel_domain.evidence_verifications(id) ON DELETE CASCADE,
     challenge_reason TEXT NOT NULL, -- "Random 5% audit", "Expired artifact detected"
@@ -126,7 +143,7 @@ CREATE TABLE kernel_domain.spot_challenges (
 -- 5. P5 · TAMPER-EVIDENT OFFLINE HASH-CHAIN LEDGER
 -- Atestasi perangkat & pencegahan backdate
 -- ------------------------------------------------------------------------------
-CREATE TABLE kernel_domain.offline_hash_chains (
+CREATE TABLE IF NOT EXISTS kernel_domain.offline_hash_chains (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     device_id TEXT NOT NULL,
     sequence_number BIGINT NOT NULL,
@@ -141,7 +158,7 @@ CREATE TABLE kernel_domain.offline_hash_chains (
 -- 6. P6 · AUTHORITY ENVELOPE & ACTION CONTRACTS
 -- Envelopes: A0 (Read), A1 (Reversible Action), A2 (Notification), A3 (Clinical/Irreversible -> Human Review)
 -- ------------------------------------------------------------------------------
-CREATE TABLE kernel_domain.authority_envelopes (
+CREATE TABLE IF NOT EXISTS kernel_domain.authority_envelopes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     action_type TEXT NOT NULL, -- e.g. "update_medication", "notify_family", "reassign_task"
     envelope_level TEXT NOT NULL, -- A0, A1, A2, A3
@@ -154,7 +171,7 @@ CREATE TABLE kernel_domain.authority_envelopes (
 -- ------------------------------------------------------------------------------
 -- 7. TWO-SIDED HANDOVER CONTRACTS
 -- ------------------------------------------------------------------------------
-CREATE TABLE kernel_domain.handover_contracts (
+CREATE TABLE IF NOT EXISTS kernel_domain.handover_contracts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     outgoing_staff_id UUID NOT NULL REFERENCES hr_domain.staff_profiles(id),
     incoming_staff_id UUID REFERENCES hr_domain.staff_profiles(id),
@@ -170,7 +187,7 @@ CREATE TABLE kernel_domain.handover_contracts (
 -- ------------------------------------------------------------------------------
 -- 8. PLATFORM: APPEND-ONLY HASH-CHAINED AUDIT TRAIL [A]
 -- ------------------------------------------------------------------------------
-CREATE TABLE audit_domain.audit_trail (
+CREATE TABLE IF NOT EXISTS audit_domain.audit_trail (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sequence_id BIGSERIAL UNIQUE,
     actor_id UUID REFERENCES hr_domain.staff_profiles(id),
@@ -206,6 +223,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_audit_trail_hash ON audit_domain.audit_trail;
 CREATE TRIGGER trg_audit_trail_hash
 BEFORE INSERT ON audit_domain.audit_trail
 FOR EACH ROW
@@ -223,9 +241,29 @@ ALTER TABLE kernel_domain.evidence_verifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_domain.audit_trail ENABLE ROW LEVEL SECURITY;
 
 -- Realtime Publication Setup
-ALTER PUBLICATION supabase_realtime ADD TABLE kernel_domain.bitemporal_obligations;
-ALTER PUBLICATION supabase_realtime ADD TABLE kernel_domain.epistemic_facts;
-ALTER PUBLICATION supabase_realtime ADD TABLE audit_domain.audit_trail;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'kernel_domain' AND tablename = 'bitemporal_obligations'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE kernel_domain.bitemporal_obligations;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'kernel_domain' AND tablename = 'epistemic_facts'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE kernel_domain.epistemic_facts;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'audit_domain' AND tablename = 'audit_trail'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE audit_domain.audit_trail;
+    END IF;
+END $$;
 
 -- ------------------------------------------------------------------------------
 -- 9. ROLE-TARGETED NOTIFICATIONS TABLE
@@ -243,6 +281,15 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 );
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'notifications'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+    END IF;
+END $$;
 
 -- No demo records are inserted. Real user profiles are created by Supabase Auth.

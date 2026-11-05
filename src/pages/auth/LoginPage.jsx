@@ -4,10 +4,10 @@ import {
   Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, UserRound
 } from 'lucide-react';
 import { signInWithEmailPassword, getAuthErrorMessage } from '../../services/auth/authService';
-import { fetchDemoAccountsPerRole, ROLE_LABELS } from '../../services/dashboard/staffService';
+import { fetchDemoAccountsPerRole, DEFAULT_FALLBACK_DEMO_ACCOUNTS, ROLE_LABELS } from '../../services/dashboard/staffService';
 
 export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLanding }) {
-  const [demoAccounts, setDemoAccounts] = useState([]);
+  const [demoAccounts, setDemoAccounts] = useState(DEFAULT_FALLBACK_DEMO_ACCOUNTS);
   const [selectedAccountKey, setSelectedAccountKey] = useState('manual');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,11 +25,12 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
       setAccountsError('');
       try {
         const accounts = await fetchDemoAccountsPerRole();
-        if (active) setDemoAccounts(accounts);
+        if (active) {
+          setDemoAccounts(accounts && accounts.length > 0 ? accounts : DEFAULT_FALLBACK_DEMO_ACCOUNTS);
+        }
       } catch (loadError) {
         if (active) {
-          setDemoAccounts([]);
-          setAccountsError('Dropdown demo belum dapat dimuat. Pastikan migration list_demo_login_accounts sudah diterapkan; login email tetap tersedia.');
+          setDemoAccounts(DEFAULT_FALLBACK_DEMO_ACCOUNTS);
         }
       } finally {
         if (active) setIsFetchingAccounts(false);
@@ -53,7 +54,7 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
     const account = demoAccounts.find((item) => item.key === accountKey);
     if (account) {
       setEmail(account.email || '');
-      setPassword(account.password || 'SambungJaga2026!');
+      setPassword('');
     }
   };
 
@@ -86,24 +87,29 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
           alt="Pemandangan kegiatan perawatan lansia"
           className="sj-auth-photo"
         />
-        <div className="sj-auth-visual-top">
-          <button type="button" onClick={onGoToLanding} className="sj-brand-lockup sj-brand-light">
-            <span className="sj-brand-mark"><Heart size={21} fill="currentColor" /></span>
-            <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
-          </button>
-          <button type="button" onClick={onGoToLanding} className="sj-back-link"><ArrowLeft size={16} /> Beranda</button>
-        </div>
-        <div className="sj-auth-story animate-fade-up">
-          <span className="sj-eyebrow sj-eyebrow-light"><ShieldCheck size={14} /> PERAWATAN TERHUBUNG</span>
-          <h1>Setiap pergantian tugas, tetap <em>tersambung.</em></h1>
-          <p>Satukan laporan, tugas perawatan, bukti, dan koordinasi tim dalam satu alur kerja yang mudah ditelusuri.</p>
-          <div className="sj-trust-list">
-            <div><ShieldCheck size={17} /><span>Identitas diverifikasi melalui Supabase Auth</span></div>
-            <div><CheckCircle2 size={17} /><span>Aktivitas penting memiliki jejak audit</span></div>
-            <div><LockKeyhole size={17} /><span>Akses mengikuti peran akun Anda</span></div>
+        <div className="sj-auth-visual-top-container">
+          <div className="sj-auth-visual-top">
+            <button type="button" onClick={onGoToLanding} className="sj-brand-lockup sj-brand-light">
+              <span className="sj-brand-mark"><Heart size={21} fill="currentColor" /></span>
+              <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
+            </button>
+            <button type="button" onClick={onGoToLanding} className="sj-back-link"><ArrowLeft size={16} /> Beranda</button>
+          </div>
+          <div className="sj-auth-badge-wrap animate-fade-up">
+            <span className="sj-eyebrow sj-eyebrow-light"><ShieldCheck size={14} /> PERAWATAN TERHUBUNG</span>
           </div>
         </div>
-        <div className="sj-auth-visual-footer"><span>Ruang kerja perawatan yang lebih teratur.</span><span>01 / 03</span></div>
+
+        <div className="sj-auth-visual-bottom animate-fade-up">
+          <div className="sj-auth-visual-bottom-text">
+            <h2>Setiap pergantian tugas, tetap <em>tersambung.</em></h2>
+            <p>Satukan alur perawatan dan koordinasi tim dalam satu platform terpadu.</p>
+          </div>
+          <div className="sj-auth-visual-footer">
+            <span>Ruang kerja perawatan teratur</span>
+            <span>01 / 02</span>
+          </div>
+        </div>
       </section>
 
       <section className="sj-auth-panel">
@@ -122,22 +128,17 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
             <label className="sj-field">
               <span><UserRound size={15} /> Pilih akun demo</span>
               <select value={selectedAccountKey} onChange={(event) => handleAccountChange(event.target.value)} disabled={isFetchingAccounts}>
-                <option value="manual">Masuk dengan email sendiri</option>
+                <option value="manual">Tidak ada akun yang dipilih (Masuk manual)</option>
                 {demoAccounts.map((account) => (
                   <option key={account.key} value={account.key}>
                     {account.name} — {ROLE_LABELS[account.role] || account.roleTitle}
                   </option>
                 ))}
-                {!isFetchingAccounts && demoAccounts.length === 0 && (
-                  <option value="no-demo" disabled>Belum ada akun demo yang diaktifkan admin</option>
-                )}
               </select>
               <small>
                 {isFetchingAccounts
-                  ? 'Memuat akun demo dari database…'
-                  : accountsError || (demoAccounts.length > 0
-                    ? 'Akun demo diambil langsung dari database. Email dan kata sandi otomatis diisi.'
-                    : 'Belum ada profil yang ditandai sebagai akun demo. Login email tetap tersedia.')}
+                  ? 'Memuat akun demo…'
+                  : 'Peraturan khusus akun demo: Hanya 1 akun khusus untuk tiap peran (Role).'}
               </small>
             </label>
 

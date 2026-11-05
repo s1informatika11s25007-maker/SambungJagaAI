@@ -5,40 +5,63 @@ const { Client } = pkg;
 
 // 1. Read .env variables
 const envPath = path.resolve('.env');
-if (!fs.existsSync(envPath)) {
-  console.error('❌ File .env tidak ditemukan!');
+const envVars = {};
+
+if (fs.existsSync(envPath)) {
+  const envText = fs.readFileSync(envPath, 'utf8');
+  envText.split('\n').forEach((line) => {
+    const match = line.match(/^\s*([\w_]+)\s*=\s*(.*)\s*$/);
+    if (match) {
+      let val = match[2].trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      envVars[match[1]] = val;
+    }
+  });
+}
+
+const connectionString = envVars.SUPABASE_DB_POOLER_URL || process.env.SUPABASE_DB_POOLER_URL || envVars.DATABASE_URL || process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error('❌ ERROR KREDENSIAL DATABASE: Variabel SUPABASE_DB_POOLER_URL atau DATABASE_URL tidak ditemukan!');
   process.exit(1);
 }
 
-const envText = fs.readFileSync(envPath, 'utf8');
-const envVars = {};
-envText.split('\n').forEach((line) => {
-  const match = line.match(/^\s*([\w_]+)\s*=\s*(.*)\s*$/);
-  if (match) {
-    let val = match[2].trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
-    }
-    envVars[match[1]] = val;
-  }
-});
-
-const connectionString = envVars.SUPABASE_DB_POOLER_URL || 'postgres://postgres.qepfuqlnkofzfhfzahpr:AikARF7Gc8md68EK@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres';
 // Convert pooler port 6543 to direct session 5432 for DDL migration execution
 const directConn = connectionString.replace(':6543/', ':5432/').replace('?pgbouncer=true', '');
 
 console.log('🚀 MENGHUBUNGKAN KE DATABASE SUPABASE...');
 console.log(`🔗 URL: ${directConn.replace(/:[^:@]+@/, ':****@')}\n`);
 
-const client = new Client({
-  connectionString: directConn,
-  ssl: { rejectUnauthorized: false }
-});
+async function createDatabaseClient(sslReject = false) {
+  return new Client({
+    connectionString: directConn,
+    ssl: { rejectUnauthorized: sslReject }
+  });
+}
 
 async function runMigrations() {
+  let client = await createDatabaseClient(false);
+
   try {
     await client.connect();
     console.log('✅ Berhasil terhubung ke Supabase PostgreSQL Database!\n');
+
+    // 2. Acquire Distributed PostgreSQL Advisory Lock (Lock Key: 74639210)
+    console.log('🔒 Mengunci Advisory Lock Database (pg_advisory_lock)...');
+    await client.query('SELECT pg_advisory_lock(74639210);');
+
+    // Create schema migration tracker table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS public._schema_migrations (
+        version TEXT PRIMARY KEY,
+        executed_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    const { rows: executedRows } = await client.query('SELECT version FROM public._schema_migrations');
+    const executedVersions = new Set(executedRows.map(r => r.version));
 
     const migrationsDir = path.resolve('supabase/migrations');
     if (!fs.existsSync(migrationsDir)) {
@@ -50,30 +73,54 @@ async function runMigrations() {
       .filter((file) => file.endsWith('.sql'))
       .sort();
 
-    console.log(`📂 Ditemukan ${files.length} berkas migrasi SQL:`);
-    files.forEach((f, i) => console.log(`   ${i + 1}. ${f}`));
+    console.log(`📂 Ditemukan ${files.length} berkas migrasi SQL (${executedVersions.size} telah dieksekusi sebelumnya):`);
+    files.forEach((f, i) => {
+      const isDone = executedVersions.has(f);
+      console.log(`   ${i + 1}. ${f} ${isDone ? '[SUDAH DIEKSEKUSI - SKIPPED]' : '[AKAN DIEKSEKUSI]'}`);
+    });
     console.log('\n--- MULAI EKSEKUSI MIGRASI ---\n');
 
+    let hasFailed = false;
+
     for (const file of files) {
+      if (executedVersions.has(file)) {
+        continue;
+      }
+
       const filePath = path.join(migrationsDir, file);
-      console.log(`⏳ Menjalankan: ${file}...`);
+      console.log(`⏳ Menjalankan migrasi: ${file}...`);
       const sql = fs.readFileSync(filePath, 'utf8');
 
       try {
+        await client.query('BEGIN');
         await client.query(sql);
-        console.log(`✅ Berhasil: ${file}\n`);
+        await client.query('INSERT INTO public._schema_migrations (version) VALUES ($1)', [file]);
+        await client.query('COMMIT');
+        console.log(`✅ Berhasil dieksekusi & dicatat: ${file}\n`);
       } catch (sqlErr) {
-        console.warn(`⚠️ Catatan/Peringatan saat eksekusi ${file}: ${sqlErr.message}`);
-        console.log(`   (Melanjutkan eksekusi migrasi berikutnya...)\n`);
+        await client.query('ROLLBACK').catch(() => {});
+        console.error(`❌ GAGAL: Eksekusi migrasi ${file} mengalami kesalahan!`);
+        console.error(`   Detail Kesalahan: ${sqlErr.message}`);
+        console.error('   Proses migrasi dihentikan. File migrasi ini di-rollback.\n');
+        hasFailed = true;
+        break;
       }
     }
 
-    console.log('🎉 SELURUH MIGRASI DATABASE BERHASIL DIPERBARUI KE SUPABASE!');
+    // Release PostgreSQL Advisory Lock
+    await client.query('SELECT pg_advisory_unlock(74639210);').catch(() => {});
+
+    if (hasFailed) {
+      console.error('💥 PROSES MIGRASI DIBATALKAN KARENA KEGAGALAN TERDETEKSI.');
+      process.exit(1);
+    }
+
+    console.log('🎉 SELURUH MIGRASI DATABASE BERHASIL DIPERBARUI DAN DICATAT DI SUPABASE!');
   } catch (err) {
-    console.error('❌ Error eksekusi database:', err.message);
+    console.error('❌ Error koneksi/eksekusi database:', err.message);
     process.exit(1);
   } finally {
-    await client.end();
+    await client.end().catch(() => {});
   }
 }
 

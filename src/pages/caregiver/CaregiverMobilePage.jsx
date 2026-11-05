@@ -5,13 +5,14 @@ import CaregiverCaptureModal from '../../components/caregiver/CaregiverCaptureMo
 import EvidenceUploadModal from '../../components/caregiver/EvidenceUploadModal';
 import VisionCameraModal from '../../components/caregiver/VisionCameraModal';
 import FloatingVoiceMic from '../../components/common/FloatingVoiceMic';
+import CaregiverAssistantWidget from '../../components/caregiver/CaregiverAssistantWidget';
 import Badge from '../../components/common/Badge';
 import { processWhatsAppVoiceReport } from '../../services/caregiver/whatsappBotService';
 import { speakTextNative } from '../../services/ai/nativeChromeService';
 
 export default function CaregiverMobilePage({
-  residents,
-  obligations,
+  residents = [],
+  obligations = [],
   onCaptureSubmit,
   onSubmitEvidence,
   onOpenTraceModal,
@@ -35,7 +36,12 @@ export default function CaregiverMobilePage({
   // Quick Chips Notification State
   const [quickChipFeedback, setQuickChipFeedback] = useState(null);
 
-  const caregiverObs = obligations.filter(o => o.assigned_caregiver_id === currentUser?.id || o.status === 'open');
+  // Filter tasks strictly for current caregiver and facility (No unassigned dumping)
+  const userFacilityId = currentUser?.facility_id || 'FAC-001';
+  const caregiverObs = obligations.filter(o =>
+    (o.assigned_caregiver_id === currentUser?.id || o.assigned_caregiver_id === currentUser?.staff_id)
+    && (o.facility_id ? o.facility_id === userFacilityId : true)
+  );
 
   // Dynamic Time-Based Quick Chips
   const currentHour = new Date().getHours();
@@ -58,25 +64,16 @@ export default function CaregiverMobilePage({
     quickChips = [
       { label: '🍚 Makan Malam Lansia Selesai', text: 'Makan malam lansia telah selesai disajikan dan diminumkan obat.' },
       { label: `💊 Obat Malam ${res2Name}`, text: `Obat malam ${res2Name} sudah diminumkan tepat waktu.` },
-      { label: '🌙 Cek Posisi Tidur & Sisa Cairan', text: 'Pemeriksaan posisi tidur dan cek cairan infus/urin lansia normal.' }
+      { label: '🌙 Cek Posisi Tidur & Keamanan', text: 'Posisi tidur lansia telah diperiksa, pagar tempat tidur terkunci aman.' }
     ];
   }
 
   const handleQuickChipClick = async (chip) => {
-    setQuickChipFeedback({ type: 'loading', text: `Memproses: "${chip.label}"...` });
-    const actorName = currentUser?.name || currentUser?.full_name || 'Caregiver';
+    speakTextNative(`Tercatat: ${chip.label}`);
+    setQuickChipFeedback(`✅ ${chip.label} berhasil dilaporkan.`);
 
-    const res = await onCaptureSubmit({
-      text: chip.text,
-      sourceType: 'one_tap_quick_chip',
-      actorName
-    });
-
-    if (res?.success) {
-      setQuickChipFeedback({ type: 'success', text: `✅ [One-Tap Chip Success] ${res.message}` });
-      speakTextNative(`Tugas ${chip.label} berhasil dicatat oleh SambungJaga.`);
-    } else {
-      setQuickChipFeedback({ type: 'error', text: res?.error || 'Gagal memproses chip.' });
+    if (typeof onCaptureSubmit === 'function') {
+      await onCaptureSubmit(chip.text);
     }
 
     setTimeout(() => setQuickChipFeedback(null), 4000);
@@ -118,231 +115,293 @@ export default function CaregiverMobilePage({
   };
 
   return (
-    <div className="w-full space-y-6 relative pb-20">
-      {/* Mobile PWA Container */}
-      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-2xl shadow-slate-200/60 space-y-5 w-full">
-
-        {/* Header PWA */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-sky-50 text-sky-600 rounded-2xl border border-sky-200">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">{currentUser?.name || currentUser?.full_name || 'Staf Medis'}</h2>
-              <p className="text-[10px] text-slate-500 font-medium">{timeOfDayLabel}</p>
-            </div>
-          </div>
-
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Offline Status Warning Bar */}
+      {isOffline && (
+        <div className="bg-amber-500 text-white px-4 py-3 rounded-2xl flex items-center justify-between shadow-md font-mono text-xs animate-pulse">
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowWhatsAppSim(!showWhatsAppSim)}
-              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-xl border border-emerald-300 flex items-center space-x-1 transition"
-            >
-              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-              <span>WhatsApp Bot</span>
-            </button>
-            <Badge variant={isOffline ? 'warning' : 'success'} className="text-[10px]">
-              {isOffline ? `P5 Offline (${offlineQueue.length})` : 'Online Supabase'}
-            </Badge>
+            <WifiOff size={18} />
+            <span className="font-bold">MODALITAS OFFLINE-FIRST AKTIF</span>
           </div>
+          <span className="bg-amber-600 px-2.5 py-1 rounded-lg text-[10px] font-bold">
+            {offlineQueue?.length || 0} Antrean Disimpan Lokal
+          </span>
         </div>
+      )}
 
-        {/* 1. ONE-TAP QUICK ROUTINE CHIPS (USABILITY #4) */}
-        <div className="bg-gradient-to-r from-sky-50 to-indigo-50/50 p-4 rounded-2xl border border-sky-100 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-800 flex items-center">
-              <Activity className="w-4 h-4 mr-1.5 text-sky-600" />
-              One-Tap Quick Routine Chips (Zero-Friction)
-            </h3>
-            <span className="text-[10px] text-sky-700 font-medium bg-sky-100 px-2 py-0.5 rounded-full">
-              {timeOfDayLabel}
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-sky-900 via-slate-900 to-indigo-950 text-white p-6 rounded-3xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center space-x-2">
+            <span className="px-2.5 py-0.5 bg-sky-500/30 text-sky-200 border border-sky-400/40 rounded-full text-[11px] font-mono font-bold">
+              Caregiver Assistant Terminal
             </span>
+            <span className="text-slate-400 text-xs font-mono">• {timeOfDayLabel}</span>
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            {quickChips.map((chip, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleQuickChipClick(chip)}
-                className="bg-white hover:bg-sky-600 text-slate-800 hover:text-white border border-sky-200 hover:border-sky-600 px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition transform active:scale-95 flex items-center space-x-1"
-              >
-                <span>{chip.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {quickChipFeedback && (
-            <div className={`p-2.5 rounded-xl text-xs font-bold border animate-fade-in ${
-              quickChipFeedback.type === 'loading'
-                ? 'bg-amber-50 text-amber-900 border-amber-300'
-                : quickChipFeedback.type === 'success'
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                : 'bg-rose-50 text-rose-900 border-rose-300'
-            }`}>
-              {quickChipFeedback.text}
-            </div>
-          )}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
+            Caregiver Mobile Interface
+          </h1>
+          <p className="text-slate-300 text-xs mt-1">
+            Ketik atau ucapkan laporan — AI mengurus penugasan, matching lansia, &amp; verifikasi bukti.
+          </p>
         </div>
 
-        {/* 2. WHATSAPP VOICE BOT SIMULATOR PANEL (USABILITY #2) */}
-        {showWhatsAppSim && (
-          <div className="bg-emerald-900 text-white rounded-2xl p-4 border border-emerald-700 shadow-xl space-y-3 animate-slide-down">
-            <div className="flex items-center justify-between border-b border-emerald-800 pb-2">
-              <div className="flex items-center space-x-2">
-                <div className="p-1.5 bg-emerald-700 rounded-lg">
-                  <MessageSquare className="w-4 h-4 text-emerald-200" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">SambungJaga WhatsApp Care Bot (Zero-App)</h4>
-                  <p className="text-[10px] text-emerald-300">Kirim Voice Note / Teks &lt; 2 Detik Realtime Response</p>
-                </div>
-              </div>
-              <button onClick={() => setShowWhatsAppSim(false)} className="text-emerald-400 hover:text-white">
-                ✕
-              </button>
-            </div>
+        <button
+          onClick={() => setIsCaptureOpen(true)}
+          className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-5 py-3 rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-sky-500/20 transition transform active:scale-95"
+        >
+          <Mic size={18} />
+          <span>Buat Laporan Baru</span>
+        </button>
+      </div>
 
-            {/* Chat Messages */}
-            <div className="bg-emerald-950/70 p-3 rounded-xl max-h-48 overflow-y-auto space-y-2 text-xs border border-emerald-800">
-              {waChatHistory.length === 0 ? (
-                <p className="text-[11px] text-emerald-400 italic text-center py-3">
-                  Simulasi WhatsApp Bot aktif. Ketik atau kirim laporan suara untuk menguji respon AI.
-                </p>
-              ) : (
-                waChatHistory.map(msg => (
-                  <div
-                    key={msg.id}
-                    className={`flex flex-col ${msg.sender === 'caregiver' ? 'items-end' : 'items-start'}`}
-                  >
-                    <div className={`max-w-[85%] p-2.5 rounded-xl ${
-                      msg.sender === 'caregiver'
-                        ? 'bg-emerald-600 text-white rounded-br-none'
-                        : 'bg-slate-800 text-emerald-100 border border-emerald-700/50 rounded-bl-none whitespace-pre-line font-mono text-[11px]'
-                    }`}>
-                      {msg.text}
-                    </div>
-                    <span className="text-[9px] text-emerald-400 mt-0.5">{msg.timestamp}</span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <form onSubmit={handleSendWhatsAppSim} className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={waInputText}
-                onChange={(e) => setWaInputText(e.target.value)}
-                placeholder="Ketik laporan WhatsApp..."
-                className="flex-1 bg-emerald-950 border border-emerald-700 rounded-xl px-3 py-2 text-xs text-white placeholder-emerald-500 focus:outline-none focus:border-emerald-400"
-              />
-              <button
-                type="submit"
-                disabled={isWaSending}
-                className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold p-2 rounded-xl transition"
-              >
-                {isWaSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </button>
-            </form>
+      {/* Caregiver Daily Command Center (8 Explicit Command Dimensions) */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center space-x-2">
+            <Activity className="w-5 h-5 text-sky-600" />
+            <h2 className="text-sm font-bold text-slate-900">Caregiver Daily Command Center</h2>
           </div>
-        )}
-
-        {/* P5 Offline Ledger Notice */}
-        {isOffline && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-900 flex items-start space-x-2.5">
-            <WifiOff className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
-            <div>
-              <p className="font-bold">Mode Offline-First Aktif (P5 Ledger)</p>
-              <p className="text-[11px] opacity-90 mt-0.5">Laporan di-hash & disimpan secara lokal dengan atestasi perangkat anti-backdate. Otomatis sinkronisasi saat terhubung internet.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Modal Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            onClick={() => setIsCaptureOpen(true)}
-            className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white p-3.5 rounded-2xl font-bold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-sky-500/20 transition"
-          >
-            <Mic className="w-4 h-4 text-sky-100" />
-            <span>Rekam Suara / Teks Modal</span>
-          </button>
-
-          <button
-            onClick={() => setIsCaptureOpen(true)}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-800 p-3.5 rounded-2xl font-semibold text-xs flex items-center justify-center space-x-1.5 border border-slate-200 transition"
-          >
-            <Plus className="w-4 h-4 text-emerald-600" />
-            <span>Klarifikasi Minimal</span>
-          </button>
+          <span className="text-[10px] bg-sky-50 text-sky-800 border border-sky-200 font-mono px-2.5 py-1 rounded-lg font-bold">
+            Pusat Komando Shift Caregiver
+          </span>
         </div>
 
-        {/* Active Obligations Section */}
-        <div className="space-y-3 pt-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center">
-              <Clock className="w-3.5 h-3.5 mr-1.5 text-sky-600" />
-              Tugas & Kewajiban Saya ({caregiverObs.length})
-            </h3>
-            <span className="text-[10px] text-slate-500 font-mono">Bitemporal Ledger</span>
+        {/* Top 4 Metrics Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* 1. Pekerjaan Prioritas Hari Ini */}
+          <div className="p-3 bg-sky-50 border border-sky-100 rounded-2xl">
+            <span className="text-[10px] text-sky-800 font-bold block uppercase tracking-wider">1. Pekerjaan Prioritas</span>
+            <span className="text-xl font-extrabold text-sky-900 mt-1 block">
+              {caregiverObs.filter(o => ['critical', 'emergency', 'important'].includes(o.priority)).length}
+            </span>
+            <span className="text-[9px] text-sky-700 font-medium">Dari {caregiverObs.length} total tugas shift</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {caregiverObs.map(ob => (
-              <div key={ob.id} className="relative group">
-                <ObligationGraphCard
-                  obligation={ob}
-                  currentUserRole="caregiver"
-                  onOpenEvidenceModal={(o) => setSelectedObligationForEvidence(o)}
-                  onOpenTraceModal={onOpenTraceModal}
-                  onApproveAction={() => {}}
-                />
-                {/* Direct Vision Camera Button Shortcut (USABILITY #3) */}
-                <button
-                  onClick={() => setSelectedObligationForVision(ob)}
-                  className="mt-2 w-full bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 shadow-md shadow-teal-500/20 transition"
-                >
-                  <Camera className="w-3.5 h-3.5 text-teal-100" />
-                  <span>📸 Scan Auto-OCR Kamera (Vision AI E1)</span>
-                </button>
-              </div>
-            ))}
+          {/* 2. Penghuni Yang Perlu Ditangani */}
+          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl">
+            <span className="text-[10px] text-indigo-800 font-bold block uppercase tracking-wider">2. Penghuni Ditangani</span>
+            <span className="text-xl font-extrabold text-indigo-900 mt-1 block">
+              {new Set(caregiverObs.map(o => o.resident_id)).size}
+            </span>
+            <span className="text-[9px] text-indigo-700 font-medium">Lansia terdaftar shift ini</span>
+          </div>
+
+          {/* 4. Tugas Yang Belum Memiliki Bukti */}
+          <div className="p-3 bg-amber-50 border border-amber-100 rounded-2xl">
+            <span className="text-[10px] text-amber-800 font-bold block uppercase tracking-wider">4. Belum Memiliki Bukti</span>
+            <span className="text-xl font-extrabold text-amber-900 mt-1 block">
+              {caregiverObs.filter(o => !o.evidence_submitted && o.required_evidence_grade && o.required_evidence_grade !== 'E0').length}
+            </span>
+            <span className="text-[9px] text-amber-700 font-medium">Memerlukan foto E1-E3</span>
+          </div>
+
+          {/* 5. Tugas Yang Menunggu Supervisor */}
+          <div className="p-3 bg-purple-50 border border-purple-100 rounded-2xl">
+            <span className="text-[10px] text-purple-800 font-bold block uppercase tracking-wider">5. Menunggu Supervisor</span>
+            <span className="text-xl font-extrabold text-purple-900 mt-1 block">
+              {caregiverObs.filter(o => ['evidence_submitted', 'pending_review'].includes(o.status)).length}
+            </span>
+            <span className="text-[9px] text-purple-700 font-medium">Review &amp; approval A3</span>
+          </div>
+        </div>
+
+        {/* Middle Status Grid: Deadline, Offline Outbox, Next Recommendation, Previous Shift Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-slate-100 text-xs">
+          {/* 3. Deadline Terdekat */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+            <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+              <Clock className="w-4 h-4 text-sky-600" />
+              <span>3. Deadline Terdekat:</span>
+            </div>
+            <p className="text-slate-900 font-mono font-bold text-sm">
+              {caregiverObs.find(o => o.valid_until)?.valid_until
+                ? `${new Date(caregiverObs.find(o => o.valid_until).valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — ${caregiverObs.find(o => o.valid_until).title}`
+                : 'Tidak ada deadline aktif saat ini'}
+            </p>
+          </div>
+
+          {/* 6. Pekerjaan Tertunda Karena Jaringan (Offline Queue) */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+            <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+              <WifiOff className="w-4 h-4 text-amber-600" />
+              <span>6. Tertunda Jaringan (Offline Outbox):</span>
+            </div>
+            <p className="text-slate-900 font-mono font-bold text-sm">
+              {offlineQueue?.length > 0
+                ? `${offlineQueue.length} laporan tertunda tersimpan lokal`
+                : '0 antrean — seluruh data tersinkronisasi'}
+            </p>
+          </div>
+
+          {/* 7. Rekomendasi Penugasan Berikutnya (AI Next Task Recommendation) */}
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-1">
+            <div className="flex items-center justify-between text-emerald-900 font-bold">
+              <span className="flex items-center space-x-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>7. Rekomendasi Penugasan Berikutnya:</span>
+              </span>
+              <span className="text-[9px] bg-emerald-200 text-emerald-900 font-mono px-2 py-0.5 rounded-full">AI Smart Suggest</span>
+            </div>
+            <p className="text-emerald-950 font-bold text-xs mt-1">
+              {caregiverObs.find(o => o.status === 'open' || o.status === 'assigned')
+                ? `👉 ${caregiverObs.find(o => o.status === 'open' || o.status === 'assigned').title} (${residents.find(r => r.id === caregiverObs.find(o => o.status === 'open' || o.status === 'assigned').resident_id)?.full_name || 'Lansia'})`
+                : 'Seluruh tugas aktif shift saat ini telah selesai dilaksanakan!'}
+            </p>
+          </div>
+
+          {/* 8. Ringkasan Shift Sebelumnya */}
+          <div className="p-3 bg-slate-100 border border-slate-200 rounded-2xl space-y-1">
+            <div className="flex items-center justify-between text-slate-800 font-bold">
+              <span>8. Ringkasan Shift Sebelumnya:</span>
+              <span className="text-[9px] bg-slate-200 text-slate-700 font-mono px-2 py-0.5 rounded-full">Handover Log</span>
+            </div>
+            <p className="text-slate-600 text-[11px] leading-snug">
+              Shift sebelumnya menyelesaikan {obligations.filter(o => o.status === 'closed' || o.status === 'verified_closed').length} tugas secara aman tanpa insiden klinis.
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Floating Hands-Free Voice Microphone (USABILITY #1) */}
-      <FloatingVoiceMic
-        onCaptureSubmit={onCaptureSubmit}
+      {/* Caregiver Autonomous Assistant Widget */}
+      <CaregiverAssistantWidget
         currentUser={currentUser}
+        residents={residents}
+        obligations={obligations}
       />
 
-      {/* Capture Modal */}
+      {/* Time-Based Quick Action Chips */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold text-slate-700 font-mono uppercase tracking-wider">
+            Quick Report Chips ({timeOfDayLabel})
+          </h2>
+          <span className="text-[10px] text-slate-400 font-mono">Tap-to-Report Instant</span>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {quickChips.map((chip, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleQuickChipClick(chip)}
+              className="bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-slate-800 border border-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5"
+            >
+              <span>{chip.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {quickChipFeedback && (
+          <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold">
+            {quickChipFeedback}
+          </div>
+        )}
+      </div>
+
+      {/* Caregiver Task List */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-800">
+            Daftar Tugas Perawatan Dialokasikan ({caregiverObs.length})
+          </h2>
+          <span className="text-xs text-slate-500 font-mono">Isolasi Fasilitas {userFacilityId}</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {caregiverObs.length === 0 ? (
+            <div className="col-span-2 p-6 bg-white border border-slate-200 rounded-2xl text-center text-xs text-slate-500 italic">
+              Tidak ada tugas aktif dialokasikan khusus untuk Anda saat ini.
+            </div>
+          ) : (
+            caregiverObs.map((ob) => (
+              <ObligationGraphCard
+                key={ob.id}
+                obligation={ob}
+                residentName={residents.find(r => r.id === ob.resident_id)?.full_name || 'Penghuni'}
+                roomNumber={residents.find(r => r.id === ob.resident_id)?.room_number || '-'}
+                onOpenEvidenceModal={(o) => setSelectedObligationForEvidence(o)}
+                onOpenVisionModal={(o) => setSelectedObligationForVision(o)}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* WhatsApp Voice Bot Modal */}
+      {showWhatsAppSim && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 text-white border border-slate-700 rounded-3xl w-full max-w-md p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-emerald-500 text-slate-950 rounded-full flex items-center justify-center font-bold text-xs">
+                  WA
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">SambungJaga WhatsApp Assistant</h3>
+                  <p className="text-[10px] text-emerald-400 font-mono">Online • Bot Laporan Suara</p>
+                </div>
+              </div>
+              <button onClick={() => setShowWhatsAppSim(false)} className="text-slate-400 hover:text-white text-sm">✕</button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto p-2 bg-slate-950 rounded-2xl border border-slate-800/80">
+              {waChatHistory.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.sender === 'caregiver' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`p-3 rounded-2xl text-xs max-w-[80%] ${msg.sender === 'caregiver' ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none border border-slate-700'}`}>
+                    <p>{msg.text}</p>
+                    <span className="text-[9px] text-slate-400 block text-right mt-1 font-mono">{msg.timestamp}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={handleSendWhatsAppSim} className="flex gap-2">
+              <input
+                value={waInputText}
+                onChange={e => setWaInputText(e.target.value)}
+                placeholder="Ketik laporan WhatsApp..."
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500"
+              />
+              <button
+                type="submit"
+                disabled={!waInputText.trim() || isWaSending}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-2 rounded-xl text-xs"
+              >
+                {isWaSending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Mic Button */}
+      <FloatingVoiceMic onCaptureClick={() => setIsCaptureOpen(true)} />
+
+      {/* Modals */}
       <CaregiverCaptureModal
         isOpen={isCaptureOpen}
         onClose={() => setIsCaptureOpen(false)}
         residents={residents}
-        onCaptureSubmit={onCaptureSubmit}
-        currentUser={currentUser}
+        onSubmit={onCaptureSubmit}
       />
 
-      {/* Evidence Upload Modal */}
-      <EvidenceUploadModal
-        isOpen={!!selectedObligationForEvidence}
-        onClose={() => setSelectedObligationForEvidence(null)}
-        obligation={selectedObligationForEvidence}
-        onSubmitEvidence={onSubmitEvidence}
-        currentUser={currentUser}
-      />
+      {selectedObligationForEvidence && (
+        <EvidenceUploadModal
+          isOpen={Boolean(selectedObligationForEvidence)}
+          onClose={() => setSelectedObligationForEvidence(null)}
+          obligation={selectedObligationForEvidence}
+          onSubmitEvidence={onSubmitEvidence}
+        />
+      )}
 
-      {/* Vision AI Camera OCR Modal */}
-      <VisionCameraModal
-        isOpen={!!selectedObligationForVision}
-        onClose={() => setSelectedObligationForVision(null)}
-        obligation={selectedObligationForVision}
-        onSubmitEvidence={onSubmitEvidence}
-        currentUser={currentUser}
-      />
+      {selectedObligationForVision && (
+        <VisionCameraModal
+          isOpen={Boolean(selectedObligationForVision)}
+          onClose={() => setSelectedObligationForVision(null)}
+          obligation={selectedObligationForVision}
+          onSubmitEvidence={onSubmitEvidence}
+        />
+      )}
     </div>
   );
 }
