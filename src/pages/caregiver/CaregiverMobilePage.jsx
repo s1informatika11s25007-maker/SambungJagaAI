@@ -454,7 +454,7 @@ export default function CaregiverMobilePage({
             <Activity className="w-5 h-5 text-sky-600" />
 
             <h2 className="text-sm font-bold text-slate-900">
-              Caregiver Daily Command Center
+              Pusat Perintah Harian Pengasuh
             </h2>
           </div>
 

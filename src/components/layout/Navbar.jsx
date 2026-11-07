@@ -3,15 +3,15 @@ import { Home, Smartphone, LayoutDashboard, FileSignature, GitPullRequest, Users
 
 export default function Navbar({ activeTab, setActiveTab }) {
   const tabs = [
-    { id: 'landing_page', label: 'Landing Page', icon: Home, badge: 'Overview' },
-    { id: 'caregiver_pwa', label: 'Pengasuh PWA Mobile', icon: Smartphone, badge: 'P5 Ledger' },
-    { id: 'supervisor_dashboard', label: 'Dashboard Supervisor', icon: LayoutDashboard, badge: 'P1-P3 Graph' },
-    { id: 'handover_contract', label: 'Kontrak Serah Terima', icon: FileSignature, badge: '2-Sided' },
-    { id: 'execution_trace', label: 'Execution Trace Viewer', icon: GitPullRequest, badge: 'Explainable' },
-    { id: 'family_portal', label: 'Family Portal', icon: Users, badge: 'Consent PDP' },
-    { id: 'simulator_lab', label: 'Simulator P4 & Lab', icon: Cpu, badge: 'Failure-Set' },
-    { id: 'rule_library', label: 'Rule Library', icon: BookOpen, badge: 'v2.1' },
-    { id: 'audit_trail', label: 'Audit Trail [A]', icon: ShieldAlert, badge: 'Hash-Chain' },
+    { id: 'landing_page', label: 'Halaman Utama', icon: Home, badge: 'Ikhtisar' },
+    { id: 'caregiver_pwa', label: 'Pengasuh Mobile', icon: Smartphone, badge: 'Buku Kas P5' },
+    { id: 'supervisor_dashboard', label: 'Dashboard Supervisor', icon: LayoutDashboard, badge: 'Grafik P1-P3' },
+    { id: 'handover_contract', label: 'Serah Terima Shift', icon: FileSignature, badge: '2 Sisi' },
+    { id: 'execution_trace', label: 'Pelacakan Keputusan AI', icon: GitPullRequest, badge: 'Transparan' },
+    { id: 'family_portal', label: 'Portal Keluarga', icon: Users, badge: 'Privasi PDP' },
+    { id: 'simulator_lab', label: 'Simulator P4 & Lab', icon: Cpu, badge: 'Analisis Kegagalan' },
+    { id: 'rule_library', label: 'Perpustakaan Aturan', icon: BookOpen, badge: 'v2.1' },
+    { id: 'audit_trail', label: 'Jejak Audit [A]', icon: ShieldAlert, badge: 'Rantai Hash' },
   ];
 
   return (
