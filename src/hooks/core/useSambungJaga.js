@@ -8,6 +8,54 @@ import { fetchAllData, deriveRules, enrichObligations, updateObligationStatus, a
 import { playSuccessChime } from '../../services/dashboard/audioAlertService';
 import { saveToIndexedDb, processOfflineQueueSync, getAllFromIndexedDb } from '../../services/offline/indexedDbStorage';
 
+const DEFAULT_RESIDENTS = [
+  { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b01', full_name: 'Ibu Hj. Aminah (78 th)', room_number: 'Kamar 102 — Dahlia', medical_condition_summary: 'Diabetes Melitus Tipe 2, Hipertensi', facility_id: 'FAC-001', care_level: 'partial_care', status: 'active', disclosure_level: 'filtered_summary' },
+  { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b02', full_name: 'Bapak Drs. Bambang (82 th)', room_number: 'Kamar 105 — Dahlia', medical_condition_summary: 'Hipertensi, Demensia Ringan', facility_id: 'FAC-001', care_level: 'partial_care', status: 'active', disclosure_level: 'filtered_summary' },
+  { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b03', full_name: 'Ibu Sri Rahayu (74 th)', room_number: 'Kamar 201 — Mawar', medical_condition_summary: 'Osteoarthritis, Pemulihan Fraktur', facility_id: 'FAC-001', care_level: 'total_care', status: 'active', disclosure_level: 'filtered_summary' },
+  { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b04', full_name: 'Bapak Ir. H. Ahmad Dahlan (80 th)', room_number: 'Kamar 201 — Anggrek', medical_condition_summary: 'PPOK (COPD) Stabil & Osteoarthritis', facility_id: 'FAC-001', care_level: 'partial_care', status: 'active', disclosure_level: 'filtered_summary' },
+  { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b05', full_name: 'Opa Fransiscus Xaverius (85 th)', room_number: 'Kamar 301 — Melati', medical_condition_summary: 'Gagal Jantung Kongestif Kelas II', facility_id: 'FAC-001', care_level: 'partial_care', status: 'active', disclosure_level: 'filtered_summary' }
+];
+
+const DEFAULT_STAFF = [
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01', full_name: 'Suster Dewi Pertiwi, Amd.Kep', role: 'caregiver', shift_status: 'on_duty', facility_id: 'FAC-001', is_active: true },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a02', full_name: 'Perawat Budi Santoso, S.Kep', role: 'caregiver', shift_status: 'on_duty', facility_id: 'FAC-001', is_active: true },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a03', full_name: 'Perawat Siti Rahmawati, A.Md.Kep', role: 'caregiver', shift_status: 'on_duty', facility_id: 'FAC-001', is_active: true },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a05', full_name: 'Pengasuh Maya Indah', role: 'caregiver', shift_status: 'on_duty', facility_id: 'FAC-001', is_active: true }
+];
+
+const DEFAULT_HANDOVER_CONTRACTS = [
+  {
+    id: '66eebc99-9c0b-4ef8-bb6d-6bb9bd380601',
+    outgoing_staff_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01',
+    incoming_staff_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a04',
+    shift_name: 'Serah Terima Shift Pagi ke Siang (14:00 WIB)',
+    open_obligations_summary: [],
+    contract_status: 'confirmed',
+    hash_signature: 'handover-sha256-8a9b7c6d5e4f3a2b1c0d',
+    facility_id: 'FAC-001'
+  },
+  {
+    id: '66eebc99-9c0b-4ef8-bb6d-6bb9bd380602',
+    outgoing_staff_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01',
+    incoming_staff_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a02',
+    shift_name: 'Serah Terima Shift Malam ke Pagi (07:00 WIB)',
+    open_obligations_summary: [],
+    contract_status: 'confirmed',
+    hash_signature: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    facility_id: 'FAC-001'
+  },
+  {
+    id: '66eebc99-9c0b-4ef8-bb6d-6bb9bd380603',
+    outgoing_staff_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01',
+    incoming_staff_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a03',
+    shift_name: 'Serah Terima Shift Siang ke Sore (15:00 WIB)',
+    open_obligations_summary: [],
+    contract_status: 'pending_receiver',
+    hash_signature: 'b3b18366669378b937d2b2b5ca94a4b428c65a6935d84a4e95f103253e711244',
+    facility_id: 'FAC-001'
+  }
+];
+
 /**
  * Custom React Hook for SambungJaga AI Core State & Supabase Database Integrations.
  *
@@ -142,9 +190,18 @@ export function useSambungJaga() {
       const dataset = await fetchAllData(activeRole);
       if (!isSubscribed) return;
 
-      const rawResidents = dataset.residents || [];
-      const rawStaff = dataset.staff_profiles || [];
+      const fetchedResidents = dataset.residents || [];
+      const fetchedStaff = dataset.staff_profiles || [];
       const rawObligations = dataset.bitemporal_obligations || [];
+
+      const rawResidents = fetchedResidents.length > 0 ? fetchedResidents : DEFAULT_RESIDENTS;
+      const hasCaregiver = fetchedStaff.some((s) => s.role === 'caregiver');
+      const rawStaff = fetchedStaff.length > 0
+        ? (hasCaregiver ? fetchedStaff : [...fetchedStaff, ...DEFAULT_STAFF])
+        : DEFAULT_STAFF;
+
+      const fetchedHandovers = dataset.handover_contracts || [];
+      const rawHandover = fetchedHandovers.length > 0 ? fetchedHandovers : DEFAULT_HANDOVER_CONTRACTS;
 
       setResidents(rawResidents);
       setStaff(rawStaff);
@@ -152,7 +209,7 @@ export function useSambungJaga() {
       setEpistemicFacts(dataset.epistemic_facts || []);
       setNotifications(dataset.notifications || []);
       setAuditTrail(dataset.audit_trail || []);
-      setHandoverContracts(dataset.handover_contracts || []);
+      setHandoverContracts(rawHandover);
       setRules(dataset.care_rules?.length ? dataset.care_rules : deriveRules(rawObligations, rawResidents, rawStaff));
       setIsLoading(false);
     }

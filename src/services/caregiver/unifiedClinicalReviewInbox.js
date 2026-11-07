@@ -11,7 +11,7 @@
 
 import { supabase } from '../../supabase/client/client';
 
-export async function fetchUnifiedClinicalReviewQueue({ facilityId = 'FAC-001' } = {}) {
+export async function fetchUnifiedClinicalReviewQueue({ facilityId = 'FAC-001', obligations = [] } = {}) {
   const reviewItems = [];
 
   try {
@@ -22,8 +22,11 @@ export async function fetchUnifiedClinicalReviewQueue({ facilityId = 'FAC-001' }
       .eq('verifier_status', 'pending_review')
       .eq('facility_id', facilityId);
 
-    if (verifs) {
+    const existingObIds = new Set();
+
+    if (verifs && verifs.length > 0) {
       verifs.forEach(v => {
+        existingObIds.add(v.obligation_id);
         reviewItems.push({
           id: `review-ev-${v.id}`,
           type: 'EVIDENCE_VERIFICATION',
@@ -32,6 +35,29 @@ export async function fetchUnifiedClinicalReviewQueue({ facilityId = 'FAC-001' }
           subtitle: `Tugas Obligasi ID: ${v.obligation_id}`,
           payload: v,
           created_at: v.sys_created_at || v.created_at
+        });
+      });
+    }
+
+    // Fallback: check obligations with status 'evidence_submitted'
+    if (obligations && obligations.length > 0) {
+      const submitted = obligations.filter(o => (o.status === 'evidence_submitted' || o.evidence_submitted) && !existingObIds.has(o.id));
+      submitted.forEach(o => {
+        reviewItems.push({
+          id: `review-ev-ob-${o.id}`,
+          type: 'EVIDENCE_VERIFICATION',
+          priority: o.priority === 'emergency' ? 'emergency' : 'critical',
+          title: `Tinjauan Bukti ${o.required_evidence_grade || 'E1'} — ${o.title}`,
+          subtitle: `Pasien: ${o.resident_name || 'Penghuni'} • ID: ${o.id}`,
+          payload: {
+            id: o.id,
+            obligation_id: o.id,
+            evidence_grade: o.required_evidence_grade || 'E1',
+            verifier_status: 'pending_review',
+            facility_id: o.facility_id || facilityId,
+            evidence_payload: { note: o.description || 'Bukti foto telah dikirim' }
+          },
+          created_at: o.sys_created_at || o.valid_from
         });
       });
     }

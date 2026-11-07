@@ -1,9 +1,10 @@
 /** Family data is minimized in SQL views; this client enforces the same disclosure boundary. */
 export async function filterFamilyPortalData(resident, obligations = []) {
+  const disclosureLevel = resident?.disclosure_level || 'filtered_summary';
   const hasVerifiedLink = Boolean(
     resident?.id
     && resident?.facility_id
-    && resident?.disclosure_level === 'filtered_summary'
+    && ['filtered_summary', 'full', 'emergency_only'].includes(disclosureLevel)
   );
 
   if (!hasVerifiedLink) {

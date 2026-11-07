@@ -7,8 +7,8 @@
 
 import { fetchUnifiedClinicalReviewQueue } from './unifiedClinicalReviewInbox';
 
-export async function getOrchestratedPriorityReviewQueue({ facilityId = 'FAC-001' } = {}) {
-  const rawQueue = await fetchUnifiedClinicalReviewQueue({ facilityId });
+export async function getOrchestratedPriorityReviewQueue({ facilityId = 'FAC-001', obligations = [] } = {}) {
+  const rawQueue = await fetchUnifiedClinicalReviewQueue({ facilityId, obligations });
 
   // Order queue strictly by clinical priority
   return rawQueue.sort((a, b) => {

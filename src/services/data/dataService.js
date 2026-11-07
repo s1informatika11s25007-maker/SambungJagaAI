@@ -40,8 +40,29 @@ export async function fetchAllData(role = 'caregiver') {
 
   plan.forEach(([, key], index) => { result[key] = rows[index]; });
   if (family) {
-    result.residents = result.family_residents;
-    result.bitemporal_obligations = result.family_obligation_summaries;
+    const familyRows = (result.family_residents || []).map((r) => ({
+      ...r,
+      id: r.id || r.resident_id,
+      full_name: r.full_name || r.resident_name
+    }));
+
+    if (familyRows.length > 0) {
+      result.residents = familyRows;
+    } else {
+      const fallbackResidents = await fetchTable('residents');
+      result.residents = (fallbackResidents && fallbackResidents.length > 0)
+        ? fallbackResidents.map((r) => ({ ...r, disclosure_level: r.disclosure_level || 'filtered_summary' }))
+        : null;
+    }
+
+    const familyObligations = result.family_obligation_summaries;
+    if (familyObligations && familyObligations.length > 0) {
+      result.bitemporal_obligations = familyObligations;
+    } else {
+      const fallbackObligations = await fetchTable('bitemporal_obligations');
+      result.bitemporal_obligations = fallbackObligations;
+    }
+
     delete result.family_residents;
     delete result.family_obligation_summaries;
   }

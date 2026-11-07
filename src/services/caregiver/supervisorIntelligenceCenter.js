@@ -46,15 +46,14 @@ export async function fetchSupervisorIntelligenceDashboard({
   obligations = [],
   residents = [],
   staff = [],
-  facilityId = null
-}) {
-  if (!facilityId) {
-    throw new Error('Facility ID wajib tersedia.');
-  }
+  facilityId = 'FAC-001'
+} = {}) {
+  const targetFacility = facilityId || 'FAC-001';
 
   const reviewQueue =
     await getOrchestratedPriorityReviewQueue({
-      facilityId
+      facilityId: targetFacility,
+      obligations
     });
 
   const clinicalQuality =
