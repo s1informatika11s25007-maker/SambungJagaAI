@@ -74,8 +74,9 @@ export default function ObligationGraphCard({ obligation, onOpenEvidenceModal, o
 
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => onOpenTraceModal(obligation)}
-            className="text-xs text-sky-600 hover:text-sky-800 flex items-center space-x-1 font-bold hover:underline"
+            type="button"
+            onClick={() => onOpenTraceModal?.(obligation)}
+            className="text-xs text-sky-600 hover:text-sky-800 flex items-center space-x-1 font-bold hover:underline cursor-pointer"
           >
             <GitCommit className="w-3.5 h-3.5" />
             <span>Trace</span>
@@ -83,8 +84,9 @@ export default function ObligationGraphCard({ obligation, onOpenEvidenceModal, o
 
           {!isClosed && (
             <button
-              onClick={() => onOpenEvidenceModal(obligation)}
-              className="bg-sky-600 hover:bg-sky-700 text-white text-xs px-2.5 py-1 rounded-lg font-semibold shadow-sm transition"
+              type="button"
+              onClick={() => onOpenEvidenceModal?.(obligation)}
+              className="bg-sky-600 hover:bg-sky-700 text-white text-xs px-2.5 py-1 rounded-lg font-semibold shadow-sm transition cursor-pointer"
             >
               Tutup Misi (P2)
             </button>
@@ -92,8 +94,9 @@ export default function ObligationGraphCard({ obligation, onOpenEvidenceModal, o
 
           {obligation.priority === 'critical' && !isClosed && currentUserRole === 'supervisor' && (
             <button
-              onClick={() => onApproveAction(obligation.id)}
-              className="bg-amber-600 hover:bg-amber-700 text-white text-xs px-2 py-1 rounded-lg font-semibold transition"
+              type="button"
+              onClick={() => onApproveAction?.(obligation.id)}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs px-2 py-1 rounded-lg font-semibold transition cursor-pointer"
             >
               A3 Human Approval
             </button>

@@ -711,6 +711,7 @@ export default function CaregiverMobilePage({
               <ObligationGraphCard
                 key={obligation.id}
                 obligation={obligation}
+                currentUserRole="caregiver"
                 residentName={
                   residents.find(
                     (resident) => resident.id === obligation.resident_id
@@ -724,6 +725,7 @@ export default function CaregiverMobilePage({
                 onOpenEvidenceModal={(item) =>
                   setSelectedObligationForEvidence(item)
                 }
+                onOpenTraceModal={onOpenTraceModal}
                 onOpenVisionModal={(item) =>
                   setSelectedObligationForVision(item)
                 }
