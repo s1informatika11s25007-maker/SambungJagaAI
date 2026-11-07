@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, Send, Loader2, Check, AlertCircle, Activity, ShieldCheck } from 'lucide-react';
+import { Send, Loader2, Check, AlertCircle, Activity, ShieldCheck } from 'lucide-react';
 import OperationalHealthCenter from './OperationalHealthCenter';
 import AutonomousSupervisorCenterModal from './AutonomousSupervisorCenterModal';
 
@@ -25,16 +25,21 @@ export default function CommandCenter({
   const [showHealthModal, setShowHealthModal] = useState(false);
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
 
+  const safeObligations = Array.isArray(obligations) ? obligations : [];
+  const safeResidents = Array.isArray(residents) ? residents : [];
+  const safeStaff = Array.isArray(staff) ? staff : [];
+  const safeAutopilotPlan = Array.isArray(autopilotPlan) ? autopilotPlan : [];
+
   const name = currentUser?.name || currentUser?.full_name || '';
-  const open = obligations.filter((o) => o.status === 'open' || o.status === 'in_progress');
-  const done = obligations.filter((o) => o.status === 'verified_closed');
+  const open = safeObligations.filter((o) => o.status === 'open' || o.status === 'in_progress');
+  const done = safeObligations.filter((o) => o.status === 'verified_closed');
   const urgent = open.filter((o) => o.priority === 'critical' || o.priority === 'emergency');
   const canCommand = activeRole !== 'family' && typeof onCommand === 'function';
 
   const stats = [
     ['Tugas aktif', open.length, `${done.length} selesai`],
     ['Perlu perhatian', urgent.length, urgent.length ? 'prioritas tinggi' : 'tidak ada'],
-    ['Penghuni', residents.length, 'terdaftar'],
+    ['Penghuni', safeResidents.length, 'terdaftar'],
   ];
 
   const submit = async (e) => {
@@ -123,18 +128,18 @@ export default function CommandCenter({
             <button
               type="button"
               onClick={runAuto}
-              disabled={!!busy || autopilotPlan.length === 0}
-              title={autopilotPlan.map((s) => s.label).join(' · ') || 'Tidak ada aksi tertunda (Autopilot Latar Belakang Aktif)'}
+              disabled={!!busy || safeAutopilotPlan.length === 0}
+              title={safeAutopilotPlan.map((s) => s.label).join(' · ') || 'Tidak ada aksi tertunda (Autopilot Latar Belakang Aktif)'}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium transition shrink-0"
             >
               {busy === 'auto' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {autopilotPlan.length ? `Jalankan Autopilot (${autopilotPlan.length})` : 'Autopilot Aktif (24/7)'}
+              {safeAutopilotPlan.length ? `Jalankan Autopilot (${safeAutopilotPlan.length})` : 'Autopilot Aktif (24/7)'}
             </button>
           )}
         </div>
 
-        {autopilotPlan.length > 0 && !feedback && (
-          <p className="text-xs text-slate-500 px-1">Siap sekali tekan: {autopilotPlan.map((s) => s.label).join(' · ')}</p>
+        {safeAutopilotPlan.length > 0 && !feedback && (
+          <p className="text-xs text-slate-500 px-1">Siap sekali tekan: {safeAutopilotPlan.map((s) => s.label).join(' · ')}</p>
         )}
         {feedback && (
           <p className={`text-sm px-1 flex items-start gap-2 ${feedback.ok ? 'text-emerald-700' : 'text-rose-700'}`}>
@@ -149,10 +154,11 @@ export default function CommandCenter({
       <AutonomousSupervisorCenterModal
         isOpen={showSupervisorModal}
         onClose={() => setShowSupervisorModal(false)}
-        obligations={obligations}
-        residents={residents}
-        staff={staff}
+        obligations={safeObligations}
+        residents={safeResidents}
+        staff={safeStaff}
       />
     </section>
   );
 }
+

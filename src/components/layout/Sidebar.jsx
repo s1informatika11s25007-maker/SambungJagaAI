@@ -49,33 +49,34 @@ export default function Sidebar({
     switch (role) {
       case 'caregiver':
         return [
-          { id: 'caregiver_pwa', label: 'Care Dashboard', desc: 'Profil Penghuni, Laporan, Tugas & Foto Bukti', icon: Home, badgeCount: openCount || null },
-          { id: 'workforce', label: 'Workforce', desc: 'Status Shift & Ketersediaan Caregiver', icon: Users },
-          { id: 'handover_contract', label: 'Continuity & Activity', desc: 'Serah Terima Shift, Jejak Keputusan & Audit Trail', icon: FileSignature }
+          { id: 'caregiver_pwa', label: 'Care Dashboard', desc: 'Laporan, Tugas & Bukti Perawatan', icon: Home, badgeCount: openCount || null },
+          { id: 'handover_contract', label: 'Serah Terima Shift', desc: 'Tugas terbuka dan informasi antar-shift', icon: FileSignature }
         ];
       case 'supervisor':
         return [
-          { id: 'supervisor_dashboard', label: 'Supervisor Center', desc: 'Review Laporan, Bukti, Persetujuan A3 & Eskalasi', icon: ShieldCheck, badgeCount: criticalCount || null },
-          { id: 'caregiver_pwa', label: 'Care Dashboard', desc: 'Pemantauan Tugas Perawatan & Kondisi Lansia', icon: Home, badgeCount: openCount || null },
-          { id: 'workforce', label: 'Workforce', desc: 'Caregiver, Shift, Kompetensi & Ketersediaan Staf', icon: Users },
-          { id: 'family_portal', label: 'Family Portal', desc: 'Tinjauan Izin PDP, Kunjungan & Pengaduan Keluarga', icon: Heart },
-          { id: 'handover_contract', label: 'Continuity & Activity', desc: 'Handover 2 Sisi, Progress & Audit Trail', icon: FileSignature }
+          { id: 'supervisor_dashboard', label: 'Supervisor Center', desc: 'Review, approval dan eskalasi', icon: ShieldCheck, badgeCount: criticalCount || null },
+          { id: 'caregiver_pwa', label: 'Care Dashboard', desc: 'Pemantauan tugas dan laporan perawatan', icon: Home, badgeCount: openCount || null },
+          { id: 'workforce', label: 'Workforce Oversight', desc: 'Shift dan ketersediaan caregiver', icon: Users },
+          { id: 'family_portal', label: 'Family Requests', desc: 'Permintaan dan pengaduan keluarga', icon: Heart },
+          { id: 'handover_contract', label: 'Handover Review', desc: 'Serah terima dan kontinuitas informasi', icon: FileSignature },
+          { id: 'audit_trail', label: 'Decision Audit', desc: 'Riwayat tindakan dan keputusan', icon: FileSignature }
         ];
       case 'family':
         return [
-          { id: 'family_portal', label: 'Family Care Portal', desc: 'Ringkasan Kemajuan Lansia, Kunjungan & Keluhan', icon: Heart },
-          { id: 'handover_contract', label: 'Continuity & Activity', desc: 'Jurnal Perkembangan Lansia & Audit Trail Transparansi', icon: FileSignature }
+          { id: 'family_portal', label: 'Family Care Portal', desc: 'Ringkasan, Kunjungan & Keluhan Keluarga', icon: Heart }
         ];
       case 'admin_hr':
-      default:
         return [
-          { id: 'supervisor_dashboard', label: 'Supervisor Center', desc: 'Pengawasan Triage & Ringkasan Panti', icon: ShieldCheck, badgeCount: criticalCount || null },
-          { id: 'workforce', label: 'Workforce Continuity', desc: 'Absensi, Shift, Onboarding/Offboarding Staf', icon: Users },
-          { id: 'handover_contract', label: 'Continuity & Activity', desc: 'Kontrak Shift, Jejak Keputusan & Audit Trail', icon: FileSignature },
-          { id: 'admin_agent_health', label: 'Agent Health', desc: 'Status 48 Agen dalam 8 Kelompok Orchestrated Mesh', icon: Cpu },
-          { id: 'admin_queue', label: 'Queue Monitor', desc: 'Durable Queue, Outbox & Telemetri Server Scheduler 24/7', icon: Layers },
-          { id: 'admin_security', label: 'Security & Config', desc: 'RLS Tenant Isolation, Audit Trail & Policy A0-A3', icon: Lock }
+          { id: 'workforce', label: 'Workforce Continuity', desc: 'Pegawai, Shift, Kehadiran & Kompetensi', icon: Users }
         ];
+      case 'platform_admin':
+        return [
+          { id: 'admin_agent_health', label: 'Agent Health', desc: 'Status registry dan telemetry agent', icon: Cpu },
+          { id: 'admin_queue', label: 'Queue Monitor', desc: 'Antrean, retry, DLQ dan heartbeat', icon: Layers },
+          { id: 'admin_security', label: 'Security & Config', desc: 'Status keamanan dan konfigurasi sistem', icon: Lock }
+        ];
+      default:
+        return [];
     }
   };
 

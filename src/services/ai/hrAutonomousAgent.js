@@ -215,7 +215,10 @@ export async function getStaffAttendanceLogs(facilityId = 'FAC-001') {
 /**
  * 48. Leave Management — Submits leave requests with PENDING status (`public.leave_requests`).
  */
-export async function submitLeaveRequest({ staffId, staffName, leaveType = 'ANNUAL', startDate, endDate, reason = '', facilityId = 'FAC-001' }) {
+export async function submitLeaveRequest({ staffId, staffName, leaveType = 'ANNUAL', startDate, endDate, reason = '', facilityId = 'FAC-001', autoApprove = false }) {
+  const isAutoApproved = autoApprove === true;
+  const initialStatus = isAutoApproved ? 'APPROVED' : 'PENDING';
+
   const leaveRecord = {
     facility_id: facilityId,
     staff_id: staffId,
@@ -224,7 +227,7 @@ export async function submitLeaveRequest({ staffId, staffName, leaveType = 'ANNU
     start_date: startDate,
     end_date: endDate,
     reason,
-    status: 'PENDING',
+    status: initialStatus,
     created_at: new Date().toISOString()
   };
 
@@ -241,11 +244,17 @@ export async function submitLeaveRequest({ staffId, staffName, leaveType = 'ANNU
     console.warn('[Leave Request DB Insert Fallback]:', err.message);
   }
 
+  if (isAutoApproved && staffId) {
+    try {
+      await supabase.from('staff_profiles').update({ shift_status: 'on_leave' }).eq('id', staffId);
+    } catch (_) {}
+  }
+
   try {
     await supabase.from('audit_trail').insert({
       facility_id: facilityId,
       gateway_tag: '[A] HR Autonomous Agent',
-      action_name: 'LEAVE_REQUEST_SUBMITTED_PENDING',
+      action_name: isAutoApproved ? 'LEAVE_REQUEST_AUTO_APPROVED' : 'LEAVE_REQUEST_SUBMITTED_PENDING',
       payload: leaveRecord
     });
   } catch (_) {}
@@ -253,8 +262,11 @@ export async function submitLeaveRequest({ staffId, staffName, leaveType = 'ANNU
   return {
     success: true,
     isDbSaved,
+    isAutoApproved,
     leaveRecord,
-    message: `Permohonan cuti (${leaveType}) ${staffName} berhasil diajukan (status: PENDING) dan menunggu persetujuan HR/Supervisor.`
+    message: isAutoApproved
+      ? `Permohonan cuti (${leaveType}) ${staffName} disetujui otomatis oleh HR Autonomous Agent & tersimpan di database.`
+      : `Permohonan cuti (${leaveType}) ${staffName} berhasil diajukan (status: PENDING) dan menunggu persetujuan HR/Supervisor.`
   };
 }
 

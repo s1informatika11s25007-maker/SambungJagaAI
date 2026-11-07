@@ -7,6 +7,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { authorizeCronRequest } from '../src/services/security/cronAuth.js';
 import { runSlaWatchdogSweep } from '../src/services/automation/slaWatchdog.js';
 import { runStuckProcessRecovery } from '../src/services/automation/stuckProcessRecovery.js';
 import { runDataReconciliation } from '../src/services/automation/dataReconciler.js';
@@ -25,13 +26,7 @@ function parseCronIntervalSeconds(cronExpr, defaultSec = 60) {
 }
 
 export default async function handler(req, res) {
-  // 1. Mandatory Authorization & CRON_SECRET Verification
-  const cronSecret = process.env.CRON_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const authHeader = req.headers['authorization'];
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or missing Bearer CRON_SECRET token' });
-  }
+  if (!authorizeCronRequest(req, res)) return;
 
   const supabaseUrl = process.env.SUPABASE_PROJECT_URL || process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { ShieldCheck, Lock, Key, FileCheck, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Lock } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 
 export default function AdminSecurityConfigPage() {
@@ -27,33 +27,33 @@ export default function AdminSecurityConfigPage() {
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Multi-Tenant Isolation</span>
-            <Badge variant="success">RLS ENFORCED</Badge>
+            <Badge variant="warning">PERLU UJI INTEGRASI</Badge>
           </div>
           <p className="text-sm font-bold text-slate-900">PostgreSQL RLS per `facility_id`</p>
           <p className="text-xs text-slate-500">
-            Seluruh query terisolasi strictly berdasarkan profil staf terverifikasi di database. Fallback anonim ditolak total.
+            Kebijakan RLS tersedia dalam migrasi. Isolasi baru dapat dinyatakan lulus setelah pengujian lintas fasilitas terhadap database deployment.
           </p>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Private Storage RLS</span>
-            <Badge variant="success">BUCKET PROTECTED</Badge>
+            <Badge variant="warning">PERLU UJI STORAGE</Badge>
           </div>
           <p className="text-sm font-bold text-slate-900">Bucket `private-care-evidence`</p>
           <p className="text-xs text-slate-500">
-            Strict role isolation untuk upload (`caregiver`, `supervisor`, `admin_hr`). Akun keluarga diblokir total dari baca/tulis bucket.
+            Bucket privat dan kebijakan akses tersedia. Uji upload, download, dan penolakan akses lintas role tetap wajib dijalankan pada project Supabase aktif.
           </p>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Evidence Trust SHA-256</span>
-            <Badge variant="kernel">CRYPTOGRAPHIC</Badge>
+            <Badge variant="info">HASH FILE</Badge>
           </div>
           <p className="text-sm font-bold text-slate-900">Pemeriksaan Hash Kriptografis</p>
           <p className="text-xs text-slate-500">
-            Foto bukti perawatan diperiksa SHA-256 binary hash di memori & DB untuk mencegah foto duplikat.
+            SHA-256 dihitung dari byte file sebelum dikirim. Hash mendukung pemeriksaan integritas/duplikasi; hash saja bukan bukti keaslian waktu atau lokasi pengambilan.
           </p>
         </div>
       </div>

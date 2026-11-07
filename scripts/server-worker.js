@@ -31,7 +31,11 @@ const { backendSupabase: supabase } = await import('../src/supabase/client/backe
 const { processOutboxQueue, dispatchOutboxEvent } = await import('../src/services/automation/eventBus.js');
 
 const WORKER_ID = `worker-${process.pid}-${Math.random().toString(36).substr(2, 6)}`;
-const FACILITY_ID = process.env.VITE_FACILITY_ID || 'FAC-001';
+const FACILITY_ID = process.env.FACILITY_ID || process.env.VITE_FACILITY_ID;
+if (!FACILITY_ID) {
+  console.error('FACILITY_ID wajib diatur untuk worker/scheduler server. Proses dihentikan agar tidak menulis ke tenant default.');
+  process.exit(1);
+}
 
 let isRunning = true;
 let isJobInFlight = false;

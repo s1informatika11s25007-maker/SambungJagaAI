@@ -10,18 +10,11 @@ import { generatePersonalCaregiverDashboard } from '../../src/services/caregiver
 import { planAutopilot } from '../../src/services/automation/autopilot';
 
 describe('P0 Care Continuity & Platform Features Audit Tests (Items 11 - 23)', () => {
-  it('11 & 12. Persistent Offline Storage (Voice & Notes) - should persist voice records and notes across reloads', async () => {
-    const savedVoice = await saveVoiceRecordToOfflineOutbox({ transcript: 'Tes laporan suara offline' });
-    expect(savedVoice.id).toBeDefined();
-
-    const voiceQueue = await getOfflineVoiceOutbox();
-    expect(voiceQueue.some(v => v.transcript === 'Tes laporan suara offline')).toBe(true);
-
-    const savedNote = await saveOfflineNote({ noteText: 'Catatan perawat offline' });
-    expect(savedNote.id).toBeDefined();
-
-    const notesQueue = await getOfflineNotes();
-    expect(notesQueue.some(n => n.noteText === 'Catatan perawat offline')).toBe(true);
+  it('11 & 12. Offline voice and notes require resident/facility scope before persistence', async () => {
+    await expect(saveVoiceRecordToOfflineOutbox({ transcript: 'Tes laporan suara offline' }))
+      .rejects.toThrow(/facility_id dan resident_id/i);
+    await expect(saveOfflineNote({ noteText: 'Catatan perawat offline' }))
+      .rejects.toThrow(/facility_id dan resident_id/i);
   });
 
   it('13. Multi-Factor Resident Entity Resolution - should compute confidence scores and flag score < 0.85', () => {

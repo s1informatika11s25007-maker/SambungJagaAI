@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Settings, User, Camera, Upload, LogOut, Heart, Shield, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Bell, Settings, User, Camera, Upload, LogOut, Shield, Trash2, X } from 'lucide-react';
 import { formatDateID, formatTimeID } from '../../utils/common/formatters';
 import Modal from '../common/Modal';
 import { ROLE_LABELS } from '../../services/dashboard/staffService';

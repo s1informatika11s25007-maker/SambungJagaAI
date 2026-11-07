@@ -11,8 +11,7 @@ import { supabase as browserClient } from '../../supabase/client/client.js';
 import { backendSupabase } from '../../supabase/client/backendClient.js';
 
 const supabase = (typeof window === 'undefined') ? backendSupabase : browserClient;
-import { emitSystemEvent, processOutboxQueue, dispatchOutboxEvent, getOutboxStatus } from './eventBus.js';
-import { OBLIGATION_STATUS, SYSTEM_EVENT_TYPES } from '../../types/core/architecture.js';
+import { emitSystemEvent, processOutboxQueue, dispatchOutboxEvent } from './eventBus.js';
 
 export async function runSlaWatchdogSweep({
   actorName = 'SLA Watchdog System',

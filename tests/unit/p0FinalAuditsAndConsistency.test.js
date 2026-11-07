@@ -48,11 +48,10 @@ describe('P0 Final Audits & System Consistency Tests (Items 71 - 88)', () => {
     expect(code).toContain('.in(\'status\', [\'open\', \'in_progress\', \'escalated\'])');
   });
 
-  it('85, 86, 87. True Offline-First IndexedDB Engine - should save items into IndexedDB persistent store first', async () => {
-    const voiceItem = await saveVoiceRecordToOfflineOutbox({ transcript: 'IndexedDB Voice Test' });
-    expect(voiceItem.id).toBeDefined();
-
-    const noteItem = await saveOfflineNote({ noteText: 'IndexedDB Note Test' });
-    expect(noteItem.id).toBeDefined();
+  it('85, 86, 87. Offline storage rejects unscoped data instead of falling back to plaintext', async () => {
+    await expect(saveVoiceRecordToOfflineOutbox({ transcript: 'IndexedDB Voice Test' }))
+      .rejects.toThrow(/facility_id dan resident_id/i);
+    await expect(saveOfflineNote({ noteText: 'IndexedDB Note Test' }))
+      .rejects.toThrow(/facility_id dan resident_id/i);
   });
 });

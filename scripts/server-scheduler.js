@@ -38,7 +38,11 @@ const { getAgentMeshHealthSnapshot } = await import('../src/services/ai/agentMes
 const { runAutonomousPlatformOperationsSweep } = await import('../src/services/monitoring/autonomousPlatformOpsAgent.js');
 
 const SCHEDULER_PID = process.pid;
-const FACILITY_ID = process.env.VITE_FACILITY_ID || 'FAC-001';
+const FACILITY_ID = process.env.FACILITY_ID || process.env.VITE_FACILITY_ID;
+if (!FACILITY_ID) {
+  console.error('FACILITY_ID wajib diatur untuk worker/scheduler server. Proses dihentikan agar tidak menulis ke tenant default.');
+  process.exit(1);
+}
 const SCHEDULER_ID = `server-scheduler-${FACILITY_ID}-${SCHEDULER_PID}`;
 
 console.log('🚀 SAMBUNGJAGA PERSISTENT SERVER-SIDE AUTOMATION SCHEDULER ONLINE (24/7 ACTIVE)');

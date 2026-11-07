@@ -60,9 +60,8 @@ describe('P0 Core Modules Comprehensive Compliance Audit Tests', () => {
       complaintText: 'Lansia mengeluh nyeri dada dan demam'
     });
 
-    expect(complaint.success).toBe(true);
-    expect(complaint.ticketNumber).toContain('TKT-CMP-');
-    expect(complaint.complaint.severity).toBe('critical');
+    expect(complaint.success).toBe(false);
+    expect(complaint.error).toMatch(/terverifikasi/i);
   });
 
   it('5. 3.7 Unified Messaging Gateway - should dispatch via channels with explicit lifecycle status and cost tracking', async () => {
@@ -78,8 +77,9 @@ describe('P0 Core Modules Comprehensive Compliance Audit Tests', () => {
   });
 
   it('6. 3.8 Offline-First Caregiver Engine - should save items to IndexedDB with sync status pending', async () => {
-    const saved = await saveToIndexedDb('offline_reports', { id: 'rep-1', text: 'Laporan offline' });
-    expect(saved.sync_status).toBe(OFFLINE_SYNC_STATUS.PENDING);
+    await expect(saveToIndexedDb('offline_reports', { id: 'rep-1', text: 'Laporan offline' }))
+      .rejects.toThrow(/facility_id wajib/i);
+    expect(OFFLINE_SYNC_STATUS.PENDING).toBe('pending');
   });
 
   it('7. 3.9 Autonomous Agent Recovery Engine - should report outbox queue status and claim jobs', async () => {

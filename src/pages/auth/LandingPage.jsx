@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, CheckCircle2, ClipboardList, Heart,
   LockKeyhole, MessageSquareText, ShieldCheck, Users,
-  Workflow, Activity, FileCheck2, TimerReset, ScanEye, CheckSquare, Upload, UserCheck, Shield
+  Workflow, Activity, FileCheck2, TimerReset, ScanEye, Upload, UserCheck, Shield
 } from 'lucide-react';
 import ArchitectureModal from '../../components/common/ArchitectureModal';
 
@@ -24,9 +24,11 @@ const capabilities = [
 ];
 
 const roleCards = [
-  { icon: Users, title: 'Supervisor Center', text: 'Prioritaskan pekerjaan, tinjau eskalasi A3, dan pantau koordinasi tim.' },
-  { icon: Heart, title: 'Care Dashboard', text: 'Lihat tugas aktif, kirim laporan suara/teks, dan lampirkan bukti foto OCR.' },
-  { icon: LockKeyhole, title: 'Family Care Portal', text: 'Akses ringkasan perawatan yang diizinkan PDP & ajukan kunjungan.' }
+  { icon: Heart, title: 'Caregiver Workspace', text: 'Lapor kondisi, lihat tugas, kirim bukti, dan lanjutkan serah terima shift.' },
+  { icon: ShieldCheck, title: 'Supervisor Center', text: 'Tinjau pengecualian, periksa bukti, putuskan approval, dan pantau eskalasi.' },
+  { icon: LockKeyhole, title: 'Family Care Portal', text: 'Lihat ringkasan yang diizinkan, kelola kunjungan, dan lacak pengaduan.' },
+  { icon: Users, title: 'HR Workforce', text: 'Kelola pegawai, kompetensi, shift, kehadiran, dan kebutuhan pengganti.' },
+  { icon: Shield, title: 'Platform Administration', text: 'Pantau layanan, antrean, keamanan, dan audit teknis sesuai kewenangan.' }
 ];
 
 export default function LandingPage({ onGoToLogin, onGoToRegister }) {
@@ -39,17 +41,17 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
         <div className="sj-hero-glow sj-hero-glow-b" />
         <div className="sj-hero-copy animate-fade-up">
           <span className="sj-eyebrow sj-eyebrow-light"><span className="sj-live-dot" /> CARE CONTINUITY INTELLIGENCE</span>
-          <h1>Perawatan lansia yang terhubung dari <em>laporan sampai bukti terverifikasi.</em></h1>
-          <p className="sj-hero-description">SambungJaga menghubungkan laporan perawat, kewajiban perawatan, pencocokan staf, verifikasi bukti, hingga serah terima shift dalam satu alur yang transparan.</p>
+          <h1>Jangan biarkan informasi perawatan lansia <em>terputus antar-shift.</em></h1>
+          <p className="sj-hero-description">SambungJaga menghubungkan laporan caregiver, tugas perawatan, bukti pelaksanaan, pemeriksaan supervisor, dan komunikasi keluarga dalam satu perjalanan perawatan yang dapat ditelusuri.</p>
 
           <div className="sj-hero-actions">
             <button type="button" onClick={onGoToLogin} className="sj-hero-primary">Masuk ke platform <ArrowRight size={18} /></button>
             <button type="button" onClick={() => setIsArchitectureModalOpen(true)} className="sj-hero-secondary">Jelajahi cara kerja <ArrowUpRight size={17} /></button>
           </div>
           <div className="sj-hero-trust-row">
-            <span><ShieldCheck size={15} /> Akses RLS Berbasis Peran</span>
-            <span><FileCheck2 size={15} /> Bukti Kriptografis SHA-256</span>
-            <span><LockKeyhole size={15} /> Persetujuan Manusia (A3)</span>
+            <span><ShieldCheck size={15} /> Workspace sesuai peran</span>
+            <span><FileCheck2 size={15} /> Hash integritas file SHA-256</span>
+            <span><LockKeyhole size={15} /> Keputusan berisiko tetap oleh manusia</span>
           </div>
         </div>
 

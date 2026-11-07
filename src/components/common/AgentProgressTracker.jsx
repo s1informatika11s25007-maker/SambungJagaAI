@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Loader2, AlertCircle, ShieldAlert, Cpu } from 'lucide-react';
+import { CheckCircle2, Loader2, AlertCircle, Cpu } from 'lucide-react';
 import { PIPELINE_STEPS, subscribeAgentProgress } from '../../services/ai/agentProgressService';
 
 export default function AgentProgressTracker({ isProcessing = false, activeMissionId = null }) {

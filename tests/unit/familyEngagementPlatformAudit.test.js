@@ -12,82 +12,59 @@ import {
   submitFamilyComplaint
 } from '../../src/services/ai/familyLiaisonAgent';
 
-describe('P0 Family Engagement Platform Audit Tests (Items 36 - 44)', () => {
-  it('36 & 38. Bi-directional Family Interaction & Visit Submissions - should submit visit request with familyUserId', async () => {
-    const res = await submitFamilyVisitRequest({
-      familyUserId: 'fam-user-123',
-      residentId: 'res-456',
-      residentName: 'Ibu Aminah',
-      proposedDate: '2026-11-05',
-      proposedTime: '10:00',
-      visitorCount: 2
+describe('Family portal fail-closed safeguards', () => {
+  it('rejects visit requests without authenticated UUIDs and facility scope', async () => {
+    const result = await submitFamilyVisitRequest({
+      familyUserId: 'not-a-uuid', residentId: 'resident-1', residentName: 'Ibu Aminah',
+      proposedDate: '2026-11-10', proposedTime: '10:00', visitorCount: 2
     });
-
-    expect(res.success).toBe(true);
-    expect(res.request.resident_name).toBe('Ibu Aminah');
-    expect(res.message).toContain('Tersimpan');
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/terverifikasi/i);
   });
 
-  it('37. Information Acknowledgment - should record disclosure receipt confirmation', async () => {
-    const res = await confirmDisclosureReceipt({
-      digestId: 'digest-1',
-      familyUserId: 'fam-1',
-      residentId: 'res-1'
-    });
-
-    expect(res.success).toBe(true);
-    expect(res.confirmationRecord.confirmedAt).toBeDefined();
+  it('does not claim disclosure receipts were stored without verified identities', async () => {
+    const result = await confirmDisclosureReceipt({ digestId: 'digest-1', familyUserId: 'fam-1', residentId: 'res-1' });
+    expect(result.success).toBe(false);
   });
 
-  it('39. Family Notification Preferences - should save and retrieve quiet hours & channel preferences', () => {
-    updateFamilyNotificationPreferences('fam-pref-1', {
-      whatsapp: true,
-      quietHoursStart: '21:30'
-    });
-
-    const pref = getFamilyNotificationPreferences('fam-pref-1');
-    expect(pref.whatsapp).toBe(true);
-    expect(pref.quietHoursStart).toBe('21:30');
+  it('does not claim notification preferences were stored without account and facility scope', async () => {
+    const result = await updateFamilyNotificationPreferences('fam-pref-1', { whatsapp: true });
+    expect(result.success).toBe(false);
+    expect(getFamilyNotificationPreferences('fam-pref-1').whatsapp).toBe(false);
   });
 
-  it('40 & 41. Family Complaint Tracking - should submit complaint and update lifecycle status to resolved', async () => {
-    const submitRes = await submitFamilyComplaint({
-      familyUserId: 'fam-1',
-      residentId: 'res-1',
-      residentName: 'Oma Aminah',
-      category: 'clinical',
-      complaintText: 'Lansia mengeluh pusing dan demam'
+  it('rejects complaint submission and status updates without verified records', async () => {
+    const submit = await submitFamilyComplaint({
+      familyUserId: 'fam-1', residentId: 'res-1', residentName: 'Ibu Aminah',
+      category: 'clinical', complaintText: 'Lansia mengeluh demam dan nyeri.'
     });
+    expect(submit.success).toBe(false);
 
-    expect(submitRes.success).toBe(true);
-    expect(submitRes.complaint.severity).toBe('critical');
-
-    const updateRes = await updateComplaintStatus({
-      complaintId: submitRes.complaint.id,
-      status: 'resolved',
-      resolutionNotes: 'Sudah diperiksa dokter dan diberikan parasetamol'
-    });
-
-    expect(updateRes.success).toBe(true);
-    expect(updateRes.status).toBe('resolved');
+    const update = await updateComplaintStatus({ complaintId: 'cmp-1', status: 'resolved' });
+    expect(update.success).toBe(false);
   });
 
-  it('42. Full Consent Lifecycle - should manage consent state transitions', () => {
-    updateConsentState({ residentId: 'res-1', consentType: 'MEDICAL_DISCLOSURE', consentStatus: 'GRANTED', grantedBy: 'fam-1' });
+  it('keeps consent pending until a persistent, authorized consent workflow exists', () => {
+    const updated = updateConsentState({ residentId: 'res-1', consentType: 'MEDICAL_DISCLOSURE' });
     const state = getConsentState('res-1', 'MEDICAL_DISCLOSURE');
-
-    expect(state.consentStatus).toBe('GRANTED');
+    expect(updated.success).toBe(false);
+    expect(updated.consentStatus).toBe('PENDING');
+    expect(state.consentStatus).toBe('PENDING');
+    expect(state.persisted).toBe(false);
   });
 
-  it('43 & 44. Scheduled Family Digests & Response Reminders - should generate scheduled digests and sweep reminders', async () => {
-    const digests = await scheduleDailyFamilyDigests({
-      residents: [{ id: 'res-1', full_name: 'Ibu Aminah' }],
-      obligations: []
+  it('does not schedule a family digest without a database-derived facility', async () => {
+    const result = await scheduleDailyFamilyDigests({
+      residents: [{ id: 'resident-1', full_name: 'Ibu Aminah' }], obligations: []
     });
+    expect(result.scheduledCount).toBe(1);
+    expect(result.digests[0].success).toBe(false);
+    expect(result.digests[0].outboxSaved).toBe(false);
+  });
 
-    expect(digests.scheduledCount).toBe(1);
-
-    const reminderSweep = await runFamilyResponseReminderSweep({});
-    expect(reminderSweep.status).toBe('COMPLETED');
+  it('requires a facility for reminder sweep', async () => {
+    const result = await runFamilyResponseReminderSweep({});
+    expect(result.success).toBe(false);
+    expect(result.status).toBe('CONFIGURATION_ERROR');
   });
 });

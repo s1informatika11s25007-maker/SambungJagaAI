@@ -9,9 +9,7 @@ import {
   fetchFamilyComplaints,
   confirmDisclosureReceipt,
   getFamilyNotificationPreferences,
-  updateFamilyNotificationPreferences,
-  getConsentState,
-  updateConsentState
+  updateFamilyNotificationPreferences
 } from '../../services/ai/familyLiaisonAgent';
 
 export default function FamilyPortalPage({ currentUser, residents = [], obligations = [] }) {
@@ -134,6 +132,7 @@ export default function FamilyPortalPage({ currentUser, residents = [], obligati
     const result = await submitFamilyComplaint({
       familyUserId,
       residentId: familyResident.id,
+      facilityId: familyResident.facility_id || currentUser?.facility_id,
       residentName: familyResident.full_name,
       category: complaintCategory,
       complaintText
@@ -152,9 +151,10 @@ export default function FamilyPortalPage({ currentUser, residents = [], obligati
   const handleConfirmReceipt = async () => {
     if (!familyResident) return;
     const res = await confirmDisclosureReceipt({
-      digestId: `digest-${Date.now()}`,
+      digestId: `daily-${familyResident.id}-${new Date().toISOString().slice(0, 10)}`,
       familyUserId,
-      residentId: familyResident.id
+      residentId: familyResident.id,
+      facilityId: familyResident.facility_id || currentUser?.facility_id
     });
     if (res.success) {
       setReceiptConfirmed(true);
@@ -162,11 +162,14 @@ export default function FamilyPortalPage({ currentUser, residents = [], obligati
     }
   };
 
-  const handleSavePref = (e) => {
+  const handleSavePref = async (e) => {
     e.preventDefault();
-    updateFamilyNotificationPreferences(familyUserId, pref);
-    setPrefSavedMsg('Preferensi notifikasi berhasil disimpan!');
-    setTimeout(() => setPrefSavedMsg(''), 4000);
+    const result = await updateFamilyNotificationPreferences(familyUserId, {
+      ...pref,
+      facilityId: familyResident?.facility_id || currentUser?.facility_id
+    });
+    setPrefSavedMsg(result?.success ? 'Preferensi notifikasi berhasil disimpan.' : (result?.error || 'Preferensi belum tersimpan.'));
+    setTimeout(() => setPrefSavedMsg(''), 5000);
   };
 
   return (
@@ -177,7 +180,7 @@ export default function FamilyPortalPage({ currentUser, residents = [], obligati
           <h1>Portal Komunikasi Keluarga 2-Arah</h1>
           <p>Portal interaktif: lihat perkembangan perawatan, ajukan kunjungan otomatis, dan sampaikan pengaduan terkontrol.</p>
         </div>
-        <Badge variant="info"><LockKeyhole size={13} /> Consent-Filtered 2-Way Platform</Badge>
+        <Badge variant="info"><LockKeyhole size={13} /> Data sesuai tingkat akses</Badge>
       </header>
 
       {residents.length > 1 && <label className="sj-field max-w-sm">
@@ -193,7 +196,7 @@ export default function FamilyPortalPage({ currentUser, residents = [], obligati
           <p className="mt-1 text-xs text-slate-500">Kamar {familyResident.room_number || 'Belum dicatat'}</p>
         </div>
         <div className="flex flex-col items-end space-y-1">
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-800"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Consent Aktif</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-800"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Akses Keluarga Terbatas</span>
           <button
             onClick={handleConfirmReceipt}
             disabled={receiptConfirmed}

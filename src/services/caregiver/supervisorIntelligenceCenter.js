@@ -1,157 +1,338 @@
 /**
- * SambungJaga AI — Autonomous Supervisor Intelligence Center
+ * SambungJaga AI — Supervisor Intelligence Center
  *
- * Unified Exception Management & Decision Control Center for Supervisors:
- * 1. Unified Clinical Review Inbox (evidence, handovers, complaints, SLA breaches)
- * 2. Risk-Based Priority Ordering (Emergency/Critical -> Important -> Routine)
- * 3. AI Rationale & Source Context Presentation
- * 4. 1-Tap Supervisor Decision Execution (Approve / Reject / Escalated Override)
- * 5. Automatic Administrative Consequences Execution (DB updates, reassignments)
- * 6. Automatic Audit Trail & Notification Updates
+ * Handles:
+ * - Evidence review
+ * - Family complaint review
+ * - Supervisor decision control
+ * - Priority review queue
+ * - Clinical quality indicators
  */
 
-import { supabase } from '../../supabase/client/client';
-import { getOrchestratedPriorityReviewQueue } from './priorityReviewOrchestrator';
-import { resolveFactContradiction } from '../trace/conflictResolutionWorkflow';
-import { approveAndActivateCareRule } from '../rule/ruleLifecycleAssistant';
-import { updateComplaintStatus } from '../ai/familyLiaisonAgent';
-import { evaluateClinicalQualityMetrics } from '../monitoring/clinicalQualityEvaluator';
-import { evaluateAssignmentQuality } from '../ai/assignmentQualityMonitor';
-import { generateFacilityPatternIntelligence } from '../ai/facilityPatternIntelligence';
+import {
+  supabase
+} from '../../supabase/client/client';
+
+import {
+  reviewEvidenceBySupervisor
+} from './evidenceVerifier';
+
+import {
+  getOrchestratedPriorityReviewQueue
+} from './priorityReviewOrchestrator';
+
+import {
+  updateComplaintStatus
+} from '../ai/familyLiaisonAgent';
+
+import {
+  evaluateClinicalQualityMetrics
+} from '../monitoring/clinicalQualityEvaluator';
+
+import {
+  evaluateAssignmentQuality
+} from '../ai/assignmentQualityMonitor';
+
+import {
+  generateFacilityPatternIntelligence
+} from '../ai/facilityPatternIntelligence';
+
 
 /**
- * Fetches complete Supervisor Intelligence Center Dashboard state.
+ * Fetch supervisor dashboard.
  */
+
 export async function fetchSupervisorIntelligenceDashboard({
   obligations = [],
   residents = [],
   staff = [],
-  facilityId = 'FAC-001'
+  facilityId = null
 }) {
-  // 1. Unified Priority Review Inbox Queue
-  const reviewQueue = await getOrchestratedPriorityReviewQueue({ facilityId });
+  if (!facilityId) {
+    throw new Error('Facility ID wajib tersedia.');
+  }
 
-  // 2. Clinical Quality Metrics
-  const clinicalQuality = evaluateClinicalQualityMetrics({ obligations });
+  const reviewQueue =
+    await getOrchestratedPriorityReviewQueue({
+      facilityId
+    });
 
-  // 3. Assignment Quality Index
-  const assignmentQuality = evaluateAssignmentQuality([], obligations, staff);
+  const clinicalQuality =
+    evaluateClinicalQualityMetrics({
+      obligations
+    });
 
-  // 4. Facility Pattern Risk Insights
-  const facilityInsights = generateFacilityPatternIntelligence({ obligations, residents, staff, facilityId });
+  const assignmentQuality =
+    evaluateAssignmentQuality(
+      [],
+      obligations,
+      staff
+    );
+
+  const facilityInsights =
+    generateFacilityPatternIntelligence({
+      obligations,
+      residents,
+      staff,
+      facilityId
+    });
 
   return {
     facilityId,
-    timestamp: new Date().toISOString(),
-    pendingReviewCount: reviewQueue.length,
+
+    timestamp:
+      new Date().toISOString(),
+
+    pendingReviewCount:
+      reviewQueue.length,
+
     reviewQueue,
+
     clinicalQuality,
+
     assignmentQuality,
+
     facilityInsights
   };
 }
 
+
 /**
- * Executes 1-tap supervisor decision and triggers automatic administrative consequences!
+ * Execute an authorized supervisor decision.
+ *
+ * The supervisor ID and facility are context only.
+ * Database RPC remains responsible for authorization.
  */
+
 export async function executeSupervisorDecision({
   reviewItem = {},
-  decision = 'APPROVED', // 'APPROVED' | 'REJECTED' | 'OVERRIDDEN'
+
+  decision = 'APPROVED',
+
   supervisorNotes = '',
-  supervisorId = 'supervisor-1',
-  facilityId = 'FAC-001'
-}) {
-  const { id, type, payload } = reviewItem;
-  let consequencesExecuted = [];
+
+  supervisorId = null,
+
+  facilityId = null
+} = {}) {
+  const {
+    id,
+    type,
+    payload = {}
+  } = reviewItem;
+
+  const consequencesExecuted = [];
 
   try {
-    switch (type) {
-      case 'EVIDENCE_VERIFICATION': {
-        // 1. Update evidence verification status in DB
-        const newVerifierStatus = decision === 'APPROVED' ? 'verified' : 'rejected';
-        await supabase
-          .from('evidence_verifications')
-          .update({
-            verifier_status: newVerifierStatus,
-            verifier_notes: supervisorNotes,
-            verified_at: new Date().toISOString()
-          })
-          .eq('id', payload.id);
-
-        // 2. If approved, close obligation in DB atomically
-        if (decision === 'APPROVED' && payload.obligation_id) {
-          await supabase
-            .from('bitemporal_obligations')
-            .update({ status: 'verified_closed', evidence_submitted: true })
-            .eq('id', payload.obligation_id);
-
-          consequencesExecuted.push('Obligasi ditutup otomatis (verified_closed)');
-        }
-        consequencesExecuted.push(`Status bukti diubah menjadi ${newVerifierStatus}`);
-        break;
-      }
-
-      case 'UNCONFIRMED_HANDOVER': {
-        const newHandoverStatus = decision === 'APPROVED' ? 'confirmed' : 'rejected';
-        await supabase
-          .from('handover_contracts')
-          .update({
-            contract_status: newHandoverStatus,
-            escalated_reason: supervisorNotes,
-            incoming_signed_at: new Date().toISOString()
-          })
-          .eq('id', payload.id);
-
-        consequencesExecuted.push(`Status kontrak handover diubah menjadi ${newHandoverStatus}`);
-        break;
-      }
-
-      case 'FAMILY_COMPLAINT': {
-        await updateComplaintStatus({
-          complaintId: payload.id,
-          status: decision === 'APPROVED' ? 'resolved' : 'closed',
-          resolutionNotes: supervisorNotes,
-          supervisorId,
-          facilityId
-        });
-        consequencesExecuted.push(`Pengaduan keluarga ditandai ${decision === 'APPROVED' ? 'resolved' : 'closed'}`);
-        break;
-      }
-
-      default: {
-        consequencesExecuted.push('Tindakan supervisor berhasil dicatat');
-        break;
-      }
+    if (!id || !type) {
+      return {
+        success: false,
+        error: 'Item peninjauan tidak lengkap.'
+      };
     }
 
-    // 3. Log Audit Trail
-    await supabase.from('audit_trail').insert({
-      facility_id: facilityId,
-      gateway_tag: '[SUPERVISOR] Autonomous Supervisor Intelligence Center',
-      action_name: `SUPERVISOR_DECISION_${decision}`,
-      payload: {
-        reviewItemId: id,
-        itemType: type,
-        decision,
-        supervisorNotes,
-        consequencesExecuted
+    if (!facilityId) {
+      return {
+        success: false,
+        error: 'Facility ID wajib tersedia.'
+      };
+    }
+
+    if (
+      !['APPROVED', 'REJECTED', 'OVERRIDDEN'].includes(decision)
+    ) {
+      return {
+        success: false,
+        error: 'Keputusan supervisor tidak valid.'
+      };
+    }
+
+    /*
+     * Evidence review.
+     */
+
+    if (type === 'EVIDENCE_VERIFICATION') {
+      const mappedDecision =
+        decision === 'APPROVED'
+          ? 'approved'
+          : decision === 'REJECTED'
+            ? 'rejected'
+            : 'resubmission_required';
+
+      const result =
+        await reviewEvidenceBySupervisor({
+          evidenceId:
+            payload.id ||
+            payload.evidence_id,
+
+          obligationId:
+            payload.obligation_id,
+
+          decision: mappedDecision,
+
+          rejectionReason:
+            mappedDecision === 'approved'
+              ? null
+              : supervisorNotes
+        });
+
+      if (result?.success !== true) {
+        return {
+          success: false,
+
+          error:
+            result?.error ||
+            'Database belum mengonfirmasi keputusan supervisor.'
+        };
       }
-    });
+
+      consequencesExecuted.push(
+        `Bukti ${result.evidenceStatus || mappedDecision}; kewajiban ${result.targetObligationStatus || 'diperbarui oleh RPC'}.`
+      );
+
+      // The evidence RPC is responsible for its own authoritative audit record.
+      return {
+        success: true,
+
+        reviewItemId: id,
+
+        decision,
+
+        consequencesExecuted,
+
+        message:
+          'Keputusan supervisor dikonfirmasi oleh database.'
+      };
+    }
+
+    /*
+     * Handover must be signed by each actual staff account.
+     */
+
+    if (type === 'UNCONFIRMED_HANDOVER') {
+      return {
+        success: false,
+
+        error:
+          'Serah terima harus ditandatangani oleh akun petugas keluar dan petugas masuk masing-masing. Supervisor tidak boleh membuat tanda tangan pengganti.'
+      };
+    }
+
+    /*
+     * Family complaint.
+     */
+
+    if (type === 'FAMILY_COMPLAINT') {
+      if (
+        decision === 'OVERRIDDEN' &&
+        !String(supervisorNotes || '').trim()
+      ) {
+        return {
+          success: false,
+          error: 'Catatan alasan keputusan wajib diisi.'
+        };
+      }
+
+      const result =
+        await updateComplaintStatus({
+          complaintId: payload.id,
+
+          status:
+            decision === 'APPROVED'
+              ? 'resolved'
+              : 'closed',
+
+          resolutionNotes: supervisorNotes,
+
+          supervisorId,
+
+          facilityId
+        });
+
+      if (
+        result?.success !== true ||
+        !result?.complaint
+      ) {
+        return {
+          success: false,
+
+          error:
+            result?.error ||
+            'Database belum mengonfirmasi perubahan status pengaduan.'
+        };
+      }
+
+      consequencesExecuted.push(
+        `Pengaduan keluarga diperbarui menjadi ${result.complaint.status}.`
+      );
+
+    } else if (type !== 'EVIDENCE_VERIFICATION') {
+      return {
+        success: false,
+
+        error:
+          `Jenis item ${type} belum memiliki handler keputusan yang terverifikasi.`
+      };
+    }
+
+    /*
+     * Audit record.
+     */
+
+    const { error: auditError } = await supabase
+      .from('audit_trail')
+      .insert({
+        facility_id: facilityId,
+
+        gateway_tag:
+          '[SUPERVISOR] Supervisor Intelligence Center',
+
+        action_name:
+          `SUPERVISOR_DECISION_${decision}`,
+
+        payload: {
+          reviewItemId: id,
+          itemType: type,
+          decision,
+          supervisorNotes,
+          consequencesExecuted
+        }
+      });
+
+    if (auditError) {
+      return {
+        success: false,
+
+        error:
+          `Perubahan tercatat, tetapi audit trail gagal disimpan: ${auditError.message}`
+      };
+    }
 
     return {
       success: true,
+
       reviewItemId: id,
+
       decision,
+
       consequencesExecuted,
-      message: `Keputusan supervisor (${decision}) berhasil dieksekusi! Konsekuensi administratif: ${consequencesExecuted.join(', ')}.`
+
+      message:
+        'Keputusan supervisor berhasil disimpan dan dicatat.'
     };
-  } catch (err) {
-    console.warn('[Supervisor Decision Execution] Fallback:', err);
+
+  } catch (error) {
+    console.error(
+      '[Supervisor Decision Execution] Failed:',
+      error
+    );
+
     return {
-      success: true,
-      decision,
-      consequencesExecuted: ['Disimpan ke memori lokal'],
-      message: `Keputusan supervisor (${decision}) dicatat.`
+      success: false,
+
+      error:
+        error?.message ||
+        'Keputusan supervisor gagal dieksekusi.'
     };
   }
 }

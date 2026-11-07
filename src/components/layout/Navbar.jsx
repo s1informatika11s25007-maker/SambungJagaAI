@@ -16,7 +16,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
   return (
     <nav className="bg-white/80 border-b border-slate-200/90 px-4 shadow-2xs">
-      <div className="max-w-7xl mx-auto flex space-x-1.5 overflow-x-auto scrollbar-none py-2">
+      <div className="w-full flex space-x-1.5 overflow-x-auto scrollbar-none py-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

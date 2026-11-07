@@ -8,16 +8,11 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { authorizeCronRequest } from '../src/services/security/cronAuth.js';
 import { dispatchOutboxEvent } from '../src/services/automation/eventBus.js';
 
 export default async function handler(req, res) {
-  // 1. Mandatory Authorization & CRON_SECRET Verification
-  const cronSecret = process.env.CRON_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const authHeader = req.headers['authorization'];
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or missing Bearer CRON_SECRET token' });
-  }
+  if (!authorizeCronRequest(req, res)) return;
 
   const supabaseUrl = process.env.SUPABASE_PROJECT_URL || process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

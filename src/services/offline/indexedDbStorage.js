@@ -10,10 +10,8 @@
  * database commit acknowledgement ({ success: true, acknowledged: true }).
  */
 
-import { supabase } from '../../supabase/client/client';
-
 const DB_NAME = 'sambungjaga_offline_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const OFFLINE_SYNC_STATUS = {
   PENDING: 'pending',
@@ -23,30 +21,45 @@ export const OFFLINE_SYNC_STATUS = {
 };
 
 const RETENTION_TTL_DAYS = 7;
+let deviceKeyPromise = null;
 
 /**
- * Generates or retrieves a stable device session key for local WebCrypto AES-GCM encryption
+ * Generates or retrieves a non-exportable AES-GCM key persisted in IndexedDB for this browser profile.
  */
 async function getOrCreateDeviceEncryptionKey() {
-  if (typeof crypto === 'undefined' || !crypto.subtle) return null;
-
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error('WebCrypto tidak tersedia; penyimpanan offline sensitif dinonaktifkan.');
+  }
+  if (deviceKeyPromise) return deviceKeyPromise;
+  deviceKeyPromise = (async () => {
+  const db = await openOfflineDb();
   try {
-    const rawKey = localStorage.getItem('sambungjaga_device_enc_key') || 'sj-device-key-2026-secret-seed-32bytes';
-    localStorage.setItem('sambungjaga_device_enc_key', rawKey);
+    const existing = await new Promise((resolve, reject) => {
+      const request = db.transaction('device_keys', 'readonly').objectStore('device_keys').get('aes-gcm-v1');
+      request.onsuccess = () => resolve(request.result?.key || null);
+      request.onerror = () => reject(request.error);
+    });
+    if (existing) return existing;
 
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(rawKey.padEnd(32, '0').slice(0, 32));
-
-    return await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'AES-GCM' },
+    const key = await crypto.subtle.generateKey(
+      { name: 'AES-GCM', length: 256 },
       false,
       ['encrypt', 'decrypt']
     );
-  } catch (_) {
-    return null;
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction('device_keys', 'readwrite');
+      transaction.objectStore('device_keys').put({ id: 'aes-gcm-v1', key, created_at: new Date().toISOString() });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error || new Error('Gagal menyimpan kunci perangkat.'));
+    });
+    return key;
+  } finally {
+    db.close();
   }
+  })();
+  try { return await deviceKeyPromise; }
+  catch (error) { deviceKeyPromise = null; throw error; }
 }
 
 /**
@@ -55,53 +68,43 @@ async function getOrCreateDeviceEncryptionKey() {
 export async function encryptAtRest(plainPayload) {
   const jsonStr = JSON.stringify(plainPayload);
   try {
-    const key = await getOrCreateDeviceEncryptionKey();
-    if (!key) return { __encrypted: false, data: jsonStr };
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+      const key = await getOrCreateDeviceEncryptionKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encoder = new TextEncoder();
+      const encryptedBuffer = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        encoder.encode(jsonStr)
+      );
 
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encoder = new TextEncoder();
-    const encryptedBuffer = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
-      key,
-      encoder.encode(jsonStr)
-    );
+      const ivBase64 = btoa(String.fromCharCode(...iv));
+      const cipherBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
 
-    const ivBase64 = btoa(String.fromCharCode(...iv));
-    const cipherBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer)));
-
-    return { __encrypted: true, iv: ivBase64, cipher: cipherBase64 };
-  } catch (_) {
-    return { __encrypted: false, data: jsonStr };
+      return { __encrypted: true, iv: ivBase64, cipher: cipherBase64 };
+    }
+  } catch (error) {
+    throw new Error(`Enkripsi offline gagal; data tidak disimpan: ${error?.message || 'WebCrypto tidak tersedia'}`);
   }
+
+  throw new Error('WebCrypto AES-GCM tidak tersedia; penyimpanan offline sensitif dinonaktifkan.');
 }
 
 /**
  * Decrypts payload at rest
  */
 export async function decryptAtRest(encryptedObj) {
-  if (!encryptedObj || !encryptedObj.__encrypted) {
-    try {
-      return typeof encryptedObj.data === 'string' ? JSON.parse(encryptedObj.data) : encryptedObj;
-    } catch (_) {
-      return encryptedObj;
-    }
+  if (!encryptedObj || encryptedObj.__encrypted !== true) {
+    // Never surface legacy plaintext records from IndexedDB.
+    return null;
   }
 
   try {
     const key = await getOrCreateDeviceEncryptionKey();
-    if (!key) return null;
-
     const iv = Uint8Array.from(atob(encryptedObj.iv), c => c.charCodeAt(0));
     const cipher = Uint8Array.from(atob(encryptedObj.cipher), c => c.charCodeAt(0));
-
-    const decryptedBuffer = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      key,
-      cipher
-    );
-
-    const decoder = new TextDecoder();
-    return JSON.parse(decoder.decode(decryptedBuffer));
+    const decryptedBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
+    return JSON.parse(new TextDecoder().decode(decryptedBuffer));
   } catch (_) {
     return null;
   }
@@ -130,6 +133,9 @@ function openOfflineDb() {
       if (!db.objectStoreNames.contains('offline_outbox')) {
         db.createObjectStore('offline_outbox', { keyPath: 'id' });
       }
+      if (!db.objectStoreNames.contains('device_keys')) {
+        db.createObjectStore('device_keys', { keyPath: 'id' });
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -141,18 +147,24 @@ function openOfflineDb() {
  * 1, 3, 4 & 9. Saves item to IndexedDB with stable client UUID & encrypted outbox
  */
 export async function saveToIndexedDb(storeName, item) {
-  const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : `client-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+  const allowedStores = new Set(['offline_reports', 'offline_voice', 'offline_outbox']);
+  if (!allowedStores.has(storeName)) throw new Error('Jenis antrean offline tidak dikenal.');
+  if (!item || typeof item !== 'object') throw new Error('Payload offline tidak valid.');
+  if (!item.facility_id || typeof item.facility_id !== 'string') {
+    throw new Error('facility_id wajib berasal dari profil fasilitas yang terverifikasi.');
+  }
+  if (typeof window === 'undefined' || !window.indexedDB) {
+    throw new Error('IndexedDB tidak tersedia; data sensitif tidak disimpan di memori atau localStorage.');
+  }
+  if (typeof crypto === 'undefined' || !crypto.randomUUID) {
+    throw new Error('Secure UUID tidak tersedia; browser tidak memenuhi persyaratan penyimpanan offline.');
+  }
 
-  const itemId = item.id || uuid;
-  const facilityId = item.facility_id || localStorage.getItem('userFacilityId') || 'FAC-001';
-  const idempotencyKey = item.idempotency_key || `idempotency-${facilityId}-${itemId}`;
-
+  const itemId = item.id || crypto.randomUUID();
+  const idempotencyKey = item.idempotency_key || `idempotency-${item.facility_id}-${itemId}`;
   const enrichedItem = {
     ...item,
     id: itemId,
-    facility_id: facilityId,
     idempotency_key: idempotencyKey,
     sync_status: item.sync_status || OFFLINE_SYNC_STATUS.PENDING,
     retry_count: item.retry_count || 0,
@@ -164,64 +176,53 @@ export async function saveToIndexedDb(storeName, item) {
     id: itemId,
     sync_status: enrichedItem.sync_status,
     idempotency_key: idempotencyKey,
-    facility_id: facilityId,
+    facility_id: item.facility_id,
     payload: encryptedWrapper,
     created_at: enrichedItem.client_created_at
   };
 
+  const db = await openOfflineDb();
   try {
-    const db = await openOfflineDb();
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(storeName, 'readwrite');
-      const store = tx.objectStore(storeName);
-      const req = store.put(recordToStore);
-      req.onsuccess = () => resolve(enrichedItem);
-      req.onerror = () => reject(req.error);
+      tx.objectStore(storeName).put(recordToStore);
+      tx.oncomplete = () => resolve(enrichedItem);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Transaksi penyimpanan offline dibatalkan.'));
     });
-  } catch (err) {
-    console.warn(`[IndexedDB Save Fallback ${storeName}]:`, err.message);
-    try {
-      const key = `idb_fallback_${storeName}_${itemId}`;
-      localStorage.setItem(key, JSON.stringify(recordToStore));
-    } catch (_) {}
-    return enrichedItem;
+  } finally {
+    db.close();
   }
 }
 
 /**
- * Reads and decrypts all records from IndexedDB
+ * Reads and decrypts all records from IndexedDB. Legacy plaintext records are skipped.
  */
 export async function getAllFromIndexedDb(storeName) {
+  const db = await openOfflineDb();
   try {
-    const db = await openOfflineDb();
     const rawRecords = await new Promise((resolve, reject) => {
       const tx = db.transaction(storeName, 'readonly');
-      const store = tx.objectStore(storeName);
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
+      const request = tx.objectStore(storeName).getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
     });
 
     const decryptedItems = [];
-    for (const rec of rawRecords) {
-      if (rec.payload) {
-        const decrypted = await decryptAtRest(rec.payload);
-        if (decrypted) {
-          decryptedItems.push({
-            ...decrypted,
-            sync_status: rec.sync_status,
-            idempotency_key: rec.idempotency_key
-          });
-        }
-      } else {
-        decryptedItems.push(rec);
+    for (const record of rawRecords) {
+      if (!record.payload || record.payload.__encrypted !== true) continue;
+      const decrypted = await decryptAtRest(record.payload);
+      if (decrypted) {
+        decryptedItems.push({
+          ...decrypted,
+          sync_status: record.sync_status,
+          idempotency_key: record.idempotency_key
+        });
       }
     }
-
     return decryptedItems;
-  } catch (err) {
-    console.warn(`[IndexedDB Read Fallback ${storeName}]:`, err.message);
-    return [];
+  } finally {
+    db.close();
   }
 }
 
@@ -229,20 +230,17 @@ export async function getAllFromIndexedDb(storeName) {
  * Deletes item from IndexedDB ONLY after server acknowledgement
  */
 export async function deleteFromIndexedDb(storeName, id) {
+  const db = await openOfflineDb();
   try {
-    const db = await openOfflineDb();
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(storeName, 'readwrite');
-      const store = tx.objectStore(storeName);
-      const req = store.delete(id);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
+      tx.objectStore(storeName).delete(id);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Transaksi penghapusan offline dibatalkan.'));
     });
-  } catch (_) {
-    try {
-      localStorage.removeItem(`idb_fallback_${storeName}_${id}`);
-    } catch (_) {}
-    return true;
+  } finally {
+    db.close();
   }
 }
 
@@ -271,20 +269,10 @@ export async function processOfflineQueueSync(storeName = 'offline_outbox', sync
       // 2. Server Upload & Database Commit
       let serverAck = null;
 
-      if (typeof syncUploadFn === 'function') {
-        serverAck = await syncUploadFn(item);
-      } else {
-        // Default Server Database Commit
-        const { data, error } = await supabase.from('epistemic_facts').insert({
-          facility_id: item.facility_id || 'FAC-001',
-          fact_key: item.fact_key || 'offline_report',
-          fact_value: item.payload || item,
-          source_type: 'offline_sync',
-          confidence_score: 1.0
-        }).select();
-
-        serverAck = { success: !error && Boolean(data), acknowledged: true, record: data?.[0] };
+      if (typeof syncUploadFn !== 'function') {
+        throw new Error('Adapter sinkronisasi server wajib disediakan; antrean tidak dikirim melalui insert generik.');
       }
+      serverAck = await syncUploadFn(item);
 
       // 6 & 7. Server Acknowledgement Check (CRITICAL: Delete ONLY IF acknowledged!)
       if (serverAck && serverAck.success === true && serverAck.acknowledged === true) {
@@ -345,12 +333,5 @@ export async function purgeLocalOfflineDataOnLogout() {
   } catch (_) {}
 }
 
-// Automatic Background Retry Listener
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    console.log('⚡ [Offline Engine] Network reconnected. Triggering automatic background sync...');
-    processOfflineQueueSync('offline_outbox').catch(() => {});
-    processOfflineQueueSync('offline_voice').catch(() => {});
-    processOfflineQueueSync('offline_reports').catch(() => {});
-  });
-}
+// Background syncing is intentionally not performed from this generic storage module.
+// The authenticated application hook must provide a tenant-scoped RPC adapter.

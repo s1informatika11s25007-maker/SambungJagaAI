@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Check, X, AlertCircle, RefreshCw, Cpu, Activity, Award, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Check, X, RefreshCw, Cpu, Activity, Award, CheckCircle2 } from 'lucide-react';
 import { fetchSupervisorIntelligenceDashboard, executeSupervisorDecision } from '../../services/caregiver/supervisorIntelligenceCenter';
 
 export default function AutonomousSupervisorCenterModal({

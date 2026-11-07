@@ -1,28 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../supabase/client/client';
-import { appendAuditEntry } from '../../services/audit/auditTrailService';
-import { verifyEvidenceSubmission } from '../../services/caregiver/evidenceVerifier';
-import { evaluateAuthorityEnvelope } from '../../services/handover/authorityEnvelope';
-import { detectFactContradiction } from '../../services/trace/epistemicLedger';
-import { validatePromptInjection } from '../../utils/common/validators';
-import { OBLIGATION_STATUS, AUTHORITY_ENVELOPE } from '../../types/core/architecture';
+import { submitEvidenceAndCloseObligationAtomic } from '../../services/caregiver/evidenceVerifier';
+import { OBLIGATION_STATUS } from '../../types/core/architecture';
 import { runCareSuperagent } from '../../services/ai/aiSuperagent';
-import { planAutopilot, executeAutopilot, startAutonomousAutopilotLoop, stopAutonomousAutopilotLoop } from '../../services/automation/autopilot';
-import { runStuckProcessRecovery } from '../../services/automation/stuckProcessRecovery';
-import { runDataReconciliation } from '../../services/automation/dataReconciler';
+import { planAutopilot, executeAutopilot } from '../../services/automation/autopilot';
 import { fetchAllData, deriveRules, enrichObligations, updateObligationStatus, assignObligationCaregiver } from '../../services/data/dataService';
-import { playA3ReviewAlert, playSuccessChime } from '../../services/dashboard/audioAlertService';
-import { runSlaWatchdogSweep } from '../../services/automation/slaWatchdog';
-import { handleCaregiverAbsence, findOptimalCaregiverForTask } from '../../services/ai/workforceAgent';
-import { analyzeEvidenceIntelligence } from '../../services/caregiver/evidenceIntelligence';
-import { synthesizeAutonomousHandoverDraft } from '../../services/handover/handoverContractService';
-import { submitFamilyVisitRequest, submitFamilyComplaint } from '../../services/ai/familyLiaisonAgent';
-import { checkCertificationExpirations, reconcileAttendanceWithRoster, draftShiftRoster, offboardStaffMember, generateMonthlyHrReport } from '../../services/ai/hrAutonomousAgent';
+import { playSuccessChime } from '../../services/dashboard/audioAlertService';
 import { saveToIndexedDb, processOfflineQueueSync, getAllFromIndexedDb } from '../../services/offline/indexedDbStorage';
-import {
-  acquireWebLock,
-  showSupervisorWebPushNotification,
-} from '../../services/ai/nativeChromeService';
 
 /**
  * Custom React Hook for SambungJaga AI Core State & Supabase Database Integrations.
@@ -54,7 +38,7 @@ export function useSambungJaga() {
   const [selectedTrace, setSelectedTrace] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userAvatar, setUserAvatar] = useState('');
-  const [autopilotPlan, setAutopilotPlan] = useState(null);
+  const [autopilotPlan, setAutopilotPlan] = useState([]);
 
   // Helper Methods Declared BEFORE Effects to Prevent ReferenceError & TDZ Bugs
   const escalateObligation = useCallback(async (id) => {
@@ -74,16 +58,12 @@ export function useSambungJaga() {
   }, []);
 
   // Correct Identity Targeting: Prioritizes Auth UUID (authUserId / user_id) before Staff Profile ID
-  const markRoleNotificationsAsShown = useCallback(async (role, userId = null) => {
+  const markRoleNotificationsAsShown = useCallback(async (_role, userId = null) => {
     const targetUserId = userId || currentUser?.authUserId || currentUser?.user_id || currentUser?.id;
     const nowIso = new Date().toISOString();
 
-    let query = supabase.from('notifications').update({ status: 'read', is_shown: true, is_read: true, read_at: nowIso });
-    if (targetUserId) {
-      query = query.or(`recipient_user_id.eq.${targetUserId},and(recipient_user_id.is.null,recipient_role.eq.${role})`);
-    } else {
-      query = query.eq('recipient_role', role);
-    }
+    if (!targetUserId) return { success: false, error: 'Identitas akun penerima tidak tersedia; pembaruan notifikasi ditolak.' };
+    const query = supabase.from('notifications').update({ status: 'read', is_shown: true, is_read: true, read_at: nowIso }).eq('recipient_user_id', targetUserId);
 
     const { data, error } = await query.select('*');
     if (error) return { success: false, error: error.message };
@@ -123,7 +103,9 @@ export function useSambungJaga() {
     if (accountObj) {
       setCurrentUser(accountObj);
       setActiveRole(accountObj.role);
-      localStorage.setItem('currentUser', JSON.stringify(accountObj));
+      // Keep only a non-sensitive navigation hint locally. The account profile is
+      // restored from the authenticated Supabase session and must not be cached in localStorage.
+      localStorage.removeItem('currentUser');
       localStorage.setItem('activeRole', accountObj.role);
       localStorage.setItem('isLoggedIn', 'true');
       if (accountObj.avatar) {
@@ -225,7 +207,7 @@ export function useSambungJaga() {
     };
   }, [residents, staff]);
 
-  // Captures new caregiver report (voice/text) using Superagent, with IndexedDB offline support
+  // Captures caregiver report and persists the fact + proposed obligations atomically.
   const captureCareReport = async ({ text, audioBlob = null, sourceType = 'text', residentId = 'auto', actorName = 'Caregiver' }) => {
     if (!text && !audioBlob) return { success: false, error: 'Input tidak boleh kosong.' };
 
@@ -233,25 +215,39 @@ export function useSambungJaga() {
       ? null
       : residents.find((item) => item.id === residentId) || null;
 
-    // Offline Save Flow
+    const facilityId = currentUser?.facility_id || selectedResident?.facility_id || null;
+    if (!facilityId) {
+      return { success: false, error: 'Fasilitas akun belum terverifikasi. Laporan tidak disimpan; hubungi administrator fasilitas.' };
+    }
+
+    // Offline mode is supported only when encryption is active; saveToIndexedDb now fails closed.
     if (isOffline) {
+      if (!selectedResident?.id) {
+        return { success: false, needsResidentConfirmation: true, error: 'Pilih penghuni terlebih dahulu sebelum menyimpan laporan offline.' };
+      }
+      if (typeof crypto === 'undefined' || !crypto.randomUUID) {
+        return { success: false, error: 'Browser tidak mendukung secure UUID; laporan offline tidak disimpan.' };
+      }
       const offlineItem = {
-        id: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-        facility_id: selectedResident?.facility_id || 'FAC-001',
+        id: crypto.randomUUID(),
+        facility_id: facilityId,
         resident_id: selectedResident?.id || null,
         fact_key: 'offline_report',
-        payload: { text, sourceType, residentId: selectedResident?.id || null },
+        payload: { text, sourceType, residentId: selectedResident?.id || null, actorName },
         client_created_at: new Date().toISOString()
       };
 
-      await saveToIndexedDb('offline_reports', offlineItem);
-      setOfflineQueue(prev => [...prev, offlineItem]);
-
-      return {
-        success: true,
-        isOfflineSaved: true,
-        message: 'Laporan disimpan terenkripsi di IndexedDB lokal (Mode Offline) dan siap disinkronkan saat terhubung.'
-      };
+      try {
+        await saveToIndexedDb('offline_reports', offlineItem);
+        setOfflineQueue((previous) => [...previous, offlineItem]);
+        return {
+          success: true,
+          isOfflineSaved: true,
+          message: 'Laporan disimpan terenkripsi pada perangkat dan menunggu sinkronisasi.'
+        };
+      } catch (error) {
+        return { success: false, error: `Penyimpanan offline aman gagal: ${error.message}` };
+      }
     }
 
     try {
@@ -264,121 +260,163 @@ export function useSambungJaga() {
       });
 
       const matchedResidentId = agentResult.detectedResidentId || selectedResident?.id || null;
-      const matchedResident = residents.find((item) => item.id === matchedResidentId) || null;
+      const matchedResident = residents.find((item) => item.id === matchedResidentId) || selectedResident;
+      if (!matchedResidentId || !matchedResident) {
+        return {
+          success: false,
+          needsResidentConfirmation: true,
+          residentCandidates: agentResult.residentCandidates || [],
+          error: 'Penghuni belum dapat diidentifikasi dengan yakin. Pilih dan konfirmasi penghuni sebelum laporan disimpan.'
+        };
+      }
+      if (agentResult.isAmbiguous) {
+        return {
+          success: false,
+          needsResidentConfirmation: true,
+          residentCandidates: agentResult.residentCandidates || [],
+          error: 'Identitas penghuni masih ambigu. Konfirmasi penghuni secara manual sebelum membuat catatan perawatan.'
+        };
+      }
 
-      // Epistemic fact record
-      const newFact = {
-        id: `fact-${Date.now()}`,
-        facility_id: matchedResident?.facility_id || 'FAC-001',
-        resident_id: matchedResidentId,
-        fact_key: 'caregiver_voice_report',
-        fact_value: { text_raw: text, source_type: sourceType, structured: agentResult.structuredFacts },
-        confidence_score: agentResult.structuredFacts ? 0.95 : 0.80,
-        sys_created_at: new Date().toISOString()
-      };
+      const proposed = Array.isArray(agentResult.proposedObligations)
+        ? agentResult.proposedObligations.slice(0, 3).map((item) => ({
+            title: item.title,
+            description: item.description,
+            priority: item.priority,
+            required_evidence_grade: item.required_evidence_grade || 'E1',
+            valid_until_minutes: item.valid_until_minutes || 120
+          }))
+        : [];
 
-      setEpistemicFacts((previous) => [newFact, ...previous]);
+      const { data: persisted, error: persistError } = await supabase.rpc('fn_record_care_fact_and_obligation', {
+        p_resident_id: matchedResidentId,
+        p_fact_key: 'caregiver_report',
+        p_fact_value: {
+          text_raw: text || null,
+          source_type: sourceType,
+          source_actor_name: actorName,
+          structured: agentResult.structuredFacts || null,
+          confidence: Number.isFinite(Number(agentResult.confidence ?? agentResult.confidenceScore))
+            ? Math.max(0, Math.min(1, Number(agentResult.confidence ?? agentResult.confidenceScore)))
+            : null,
+          reported_at: new Date().toISOString()
+        },
+        p_source_type: sourceType === 'voice' ? 'voice_stt' : 'text_input',
+        p_source_actor_id: currentUser?.id || null,
+        p_close_obligation_id: null,
+        p_close_note: null,
+        p_proposed_obligations: proposed
+      });
 
-      // Proposed care obligations
-      if (agentResult.proposedObligations && agentResult.proposedObligations.length > 0) {
-        const createdList = agentResult.proposedObligations.map((ob, idx) => ({
-          id: `ob-${Date.now()}-${idx}`,
-          facility_id: matchedResident?.facility_id || 'FAC-001',
-          resident_id: matchedResidentId,
-          resident_name: matchedResident?.full_name || 'Penghuni',
-          assigned_caregiver_id: currentUser?.authUserId || currentUser?.user_id || currentUser?.id || null,
-          title: ob.title,
-          description: ob.description,
-          status: ob.requires_human_review ? 'pending_review' : 'open',
-          priority: ob.priority || 'important',
-          evidence_grade: ob.required_evidence_grade || 'E1',
-          valid_from: new Date().toISOString(),
-          valid_until: new Date(Date.now() + (ob.valid_until_minutes || 120) * 60000).toISOString()
-        }));
+      if (persistError) {
+        throw new Error(`Database menolak penyimpanan laporan: ${persistError.message}`);
+      }
+      if (!persisted || persisted.success !== true || !persisted.fact_id) {
+        throw new Error('Database tidak memberikan acknowledgement penyimpanan fakta.');
+      }
 
-        setObligations((previous) => enrichObligations([...createdList, ...previous], residents, staff));
+      // Refresh persisted records; UI state is a projection of the database, not the source of truth.
+      const [factResult, obligationResult] = await Promise.all([
+        supabase.from('epistemic_facts').select('*').eq('id', persisted.fact_id).maybeSingle(),
+        persisted.mission_id
+          ? supabase.from('bitemporal_obligations').select('*').eq('mission_id', persisted.mission_id)
+          : Promise.resolve({ data: [], error: null })
+      ]);
+
+      if (factResult.error) throw new Error(`Laporan tersimpan, tetapi pembacaan ulang fakta gagal: ${factResult.error.message}`);
+      if (obligationResult.error) throw new Error(`Laporan tersimpan, tetapi pembacaan ulang tugas gagal: ${obligationResult.error.message}`);
+      if (factResult.data) setEpistemicFacts((previous) => [factResult.data, ...previous.filter((item) => item.id !== factResult.data.id)]);
+      if (obligationResult.data?.length) {
+        setObligations((previous) => enrichObligations([...obligationResult.data, ...previous.filter((item) => !obligationResult.data.some((saved) => saved.id === item.id))], residents, staff));
       }
 
       playSuccessChime();
-      return { success: true, agentResult };
+      return { success: true, agentResult, persisted, message: 'Laporan dan fakta tersimpan di database. Usulan tugas dibuat sesuai hasil RPC.' };
     } catch (err) {
-      console.warn('Superagent capture error:', err);
-      return { success: false, error: err.message };
+      console.warn('Care report persistence failed:', err);
+      return { success: false, error: err.message || 'Laporan gagal disimpan.' };
     }
   };
 
-  // Evidence Submission Handler
-  const submitEvidenceAndClose = async ({ obligationId, evidenceGrade = 'E1', imageDataUrl = null, evidencePayload = {} }) => {
-    try {
-      const res = await verifyEvidenceSubmission(evidenceGrade, evidenceGrade, { imageDataUrl, ...evidencePayload });
-      if (res.success) {
-        setObligations((previous) =>
-          previous.map((item) =>
-            item.id === obligationId
-              ? { ...item, status: 'evidence_submitted', evidence_submitted: true }
-              : item
-          )
-        );
-        playSuccessChime();
-        return { success: true, message: 'Bukti berhasil diunggah dan dikirim untuk tinjauan.' };
-      }
-      return res;
-    } catch (err) {
-      return { success: false, error: err.message };
+  // Evidence Submission Handler — the actual image must reach private Storage before RPC commit.
+  const submitEvidenceAndClose = async ({ obligationId, evidenceGrade = 'E1', imageDataUrl = null, payload = {}, evidencePayload = {} }) => {
+    const obligation = obligations.find((item) => item.id === obligationId);
+    const facilityId = obligation?.facility_id || currentUser?.facility_id || null;
+    if (!obligation || !facilityId) {
+      return { success: false, error: 'Tugas atau fasilitas terverifikasi tidak ditemukan.' };
     }
+    if (evidenceGrade === 'E1' && !imageDataUrl) {
+      return { success: false, error: 'Bukti E1 wajib menyertakan file foto yang telah diproses.' };
+    }
+
+    const result = await submitEvidenceAndCloseObligationAtomic({
+      obligationId,
+      evidenceGrade,
+      evidencePayload: { ...payload, ...evidencePayload },
+      imageDataUrl,
+      facilityId
+    });
+
+    if (!result.success) return result;
+
+    setObligations((previous) => previous.map((item) => item.id === obligationId
+      ? { ...item, status: 'evidence_submitted', evidence_submitted: true }
+      : item));
+    playSuccessChime();
+    return { ...result, message: 'Bukti tersimpan di Private Storage dan menunggu persetujuan supervisor.' };
   };
 
-  // Supervisor Approval Handler
+  // Supervisor Approval Handler — only the database RPC can authorize closure.
   const approveAuthorityAction = async (obligationId) => {
+    if (activeRole !== 'supervisor') {
+      return { success: false, error: 'Hanya supervisor terautentikasi yang boleh menyetujui penutupan tugas.' };
+    }
     try {
-      const { data, error } = await supabase
-        .from('bitemporal_obligations')
-        .update({ status: 'verified_closed', evidence_submitted: true })
-        .eq('id', obligationId)
-        .select()
-        .single();
-
-      if (!error && data) {
-        setObligations((previous) =>
-          previous.map((item) => (item.id === obligationId ? { ...item, status: 'verified_closed' } : item))
-        );
-        playSuccessChime();
-        return { success: true, updated: data };
-      }
+      const { data, error } = await supabase.rpc('approve_obligation_closure', {
+        p_obligation_id: obligationId
+      });
+      if (error) return { success: false, error: error.message };
+      if (!data || data.success !== true) return { success: false, error: data?.message || 'Approval tidak dikonfirmasi database.' };
+      setObligations((previous) => previous.map((item) => item.id === obligationId
+        ? { ...item, status: 'verified_closed', evidence_submitted: true }
+        : item));
+      playSuccessChime();
+      return { success: true, updated: data.obligation || data };
     } catch (err) {
       console.warn('Approve action error:', err);
+      return { success: false, error: err.message || 'Gagal menyetujui tugas.' };
     }
-    return { success: false, error: 'Gagal menyetujui tugas.' };
   };
 
   const createObligation = async (newObligationData) => {
+    const resident = residents.find((item) => item.id === newObligationData.resident_id);
+    if (!resident || !(resident.facility_id || currentUser?.facility_id)) {
+      return { success: false, error: 'Penghuni dan fasilitas aktif harus terverifikasi sebelum tugas dibuat.' };
+    }
+    if (!newObligationData.title?.trim()) {
+      return { success: false, error: 'Judul tugas wajib diisi.' };
+    }
     try {
-      const { data, error } = await supabase
-        .from('bitemporal_obligations')
-        .insert({
-          facility_id: newObligationData.facility_id || 'FAC-001',
-          resident_id: newObligationData.resident_id,
-          assigned_caregiver_id: newObligationData.assigned_caregiver_id || null,
-          title: newObligationData.title,
-          description: newObligationData.description || '',
-          status: 'open',
-          priority: newObligationData.priority || 'important',
-          evidence_grade: newObligationData.evidence_grade || 'E1',
-          valid_from: new Date().toISOString(),
-          valid_until: new Date(Date.now() + 4 * 3600 * 1000).toISOString()
-        })
-        .select()
-        .single();
-
-      if (!error && data) {
-        const enriched = enrichObligations([data], residents, staff)[0];
-        setObligations((previous) => [enriched, ...previous]);
-        return { success: true, data: enriched };
+      const { data, error } = await supabase.rpc('create_care_obligation', {
+        p_resident_id: newObligationData.resident_id,
+        p_title: newObligationData.title.trim(),
+        p_description: newObligationData.description || null,
+        p_priority: newObligationData.priority || 'important',
+        p_required_evidence_grade: newObligationData.required_evidence_grade || newObligationData.evidence_grade || 'E1',
+        p_assigned_caregiver_id: newObligationData.assigned_caregiver_id || null,
+        p_valid_until_minutes: Number(newObligationData.valid_until_minutes) || 240
+      });
+      if (error) return { success: false, error: error.message };
+      if (!data?.success || !data.obligation?.id) {
+        return { success: false, error: data?.message || 'Database tidak mengonfirmasi pembuatan tugas.' };
       }
+      const enriched = enrichObligations([data.obligation], residents, staff)[0];
+      setObligations((previous) => [enriched, ...previous.filter((item) => item.id !== enriched.id)]);
+      return { success: true, data: enriched };
     } catch (err) {
       console.warn('Create obligation error:', err);
+      return { success: false, error: err.message || 'Gagal membuat tugas baru.' };
     }
-    return { success: false, error: 'Gagal membuat tugas baru.' };
   };
 
   const deleteNotification = async (notificationId) => {
@@ -388,21 +426,20 @@ export function useSambungJaga() {
     return { success: true };
   };
 
-  const clearRoleNotifications = async (role, userId = null) => {
+  const clearRoleNotifications = async (_role, userId = null) => {
     const targetUserId = userId || currentUser?.authUserId || currentUser?.user_id || currentUser?.id;
     let query = supabase.from('notifications').delete();
     if (targetUserId) {
-      query = query.or(`recipient_user_id.eq.${targetUserId},and(recipient_user_id.is.null,recipient_role.eq.${role})`);
+      query = query.eq('recipient_user_id', targetUserId);
     } else {
-      query = query.eq('recipient_role', role);
+      return { success: false, error: 'Identitas akun penerima tidak tersedia; penghapusan notifikasi ditolak.' };
     }
 
     const { error } = await query;
     if (error) return { success: false, error: error.message };
 
     setNotifications((previous) => previous.filter((item) => {
-      if (targetUserId && item.recipient_user_id === targetUserId) return false;
-      return item.recipient_role !== role;
+      return item.recipient_user_id !== targetUserId;
     }));
     return { success: true };
   };
@@ -429,28 +466,27 @@ export function useSambungJaga() {
   };
 
   const createHandoverContract = async (contractData) => {
-    try {
-      const { data, error } = await supabase
-        .from('handover_contracts')
-        .insert({
-          facility_id: contractData.facility_id || 'FAC-001',
-          shift_name: contractData.shift_name || 'Siang',
-          outgoing_staff_id: contractData.outgoing_staff_id,
-          incoming_staff_id: contractData.incoming_staff_id,
-          contract_status: 'draft',
-          open_obligations_summary: contractData.open_obligations_summary || {}
-        })
-        .select()
-        .single();
+    const incomingStaffId = contractData?.incoming_staff_id || contractData?.incomingStaffId;
+    const shiftName = contractData?.shift_name || contractData?.shiftName;
+    if (!incomingStaffId || !shiftName) {
+      return { success: false, error: 'Petugas penerima dan nama shift wajib dipilih.' };
+    }
 
-      if (!error && data) {
-        setHandoverContracts((previous) => [data, ...previous]);
-        return { success: true, data };
+    try {
+      const { data, error } = await supabase.rpc('create_handover_contract', {
+        p_incoming_staff_id: incomingStaffId,
+        p_shift_name: shiftName
+      });
+      if (error) throw error;
+      if (!data?.success || !data?.contract?.id) {
+        return { success: false, error: data?.message || 'Server tidak mengonfirmasi penyimpanan kontrak.' };
       }
+      setHandoverContracts((previous) => [data.contract, ...previous.filter((item) => item.id !== data.contract.id)]);
+      return { success: true, data: data.contract, message: data.message };
     } catch (err) {
       console.warn('Create handover contract error:', err);
+      return { success: false, error: err?.message || 'Gagal membuat draft handover contract.' };
     }
-    return { success: false, error: 'Gagal membuat draft handover contract.' };
   };
 
   // Synchronizes Offline IndexedDB Stores with Server Database Commit Acknowledgement
@@ -458,29 +494,62 @@ export function useSambungJaga() {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return { success: false, error: 'Perangkat masih offline. Hubungkan ke jaringan untuk sinkronisasi.' };
     }
+    if (!currentUser?.facility_id || !currentUser?.id) {
+      return { success: false, error: 'Profil staf dan fasilitas belum terverifikasi.' };
+    }
 
     try {
-      const reportsSync = await processOfflineQueueSync('offline_reports');
-      const voiceSync = await processOfflineQueueSync('offline_voice');
-      const outboxSync = await processOfflineQueueSync('offline_outbox');
+      const reportsSync = await processOfflineQueueSync('offline_reports', async (item) => {
+        if (!item.id || !item.resident_id || item.facility_id !== currentUser.facility_id) {
+          return { success: false, acknowledged: false, error: 'Identitas laporan/penghuni/fasilitas tidak valid.' };
+        }
+        const { data, error } = await supabase.rpc('sync_offline_care_report', {
+          p_client_submission_id: item.id,
+          p_resident_id: item.resident_id,
+          p_fact_value: {
+            text: item.payload?.text || item.text || '',
+            source_type: item.payload?.sourceType || 'text',
+            actor_name: item.payload?.actorName || 'Caregiver',
+            client_created_at: item.client_created_at
+          }
+        });
+        if (error) return { success: false, acknowledged: false, error: error.message };
+        return {
+          success: data?.success === true,
+          acknowledged: data?.acknowledged === true,
+          error: data?.message || 'Server belum mengonfirmasi laporan offline.'
+        };
+      });
 
-      const totalSynced = (reportsSync.syncedCount || 0) + (voiceSync.syncedCount || 0) + (outboxSync.syncedCount || 0);
+      const remainingReports = await getAllFromIndexedDb('offline_reports');
+      const remainingVoice = await getAllFromIndexedDb('offline_voice');
+      const remainingOutbox = await getAllFromIndexedDb('offline_outbox');
+      const remaining = [...remainingReports, ...remainingVoice, ...remainingOutbox];
+      setOfflineQueue(remaining);
 
-      // Refresh data after successful sync
-      const dataset = await fetchAllData(activeRole);
-      if (dataset) {
-        setObligations(enrichObligations(dataset.bitemporal_obligations || [], dataset.residents || [], dataset.staff_profiles || []));
-        setEpistemicFacts(dataset.epistemic_facts || []);
+      if (reportsSync.syncedCount > 0) {
+        const dataset = await fetchAllData(activeRole);
+        if (dataset) {
+          setObligations(enrichObligations(dataset.bitemporal_obligations || [], dataset.residents || [], dataset.staff_profiles || []));
+          setEpistemicFacts(dataset.epistemic_facts || []);
+        }
       }
 
-      setOfflineQueue([]);
+      const failedCount = reportsSync.failedCount || 0;
+      const unsupportedPending = remainingVoice.length + remainingOutbox.length;
       return {
-        success: true,
-        syncedCount: totalSynced,
-        message: `Berhasil mengunggah & menyinkronkan ${totalSynced} laporan offline ke server dengan konfirmasi komit DB.`
+        success: failedCount === 0 && unsupportedPending === 0,
+        syncedCount: reportsSync.syncedCount || 0,
+        failedCount,
+        pendingCount: remaining.length,
+        message: unsupportedPending > 0
+          ? `${reportsSync.syncedCount || 0} laporan tersinkron. ${unsupportedPending} item suara/outbox tetap tersimpan dan belum didukung sinkronisasi otomatis.`
+          : `${reportsSync.syncedCount || 0} laporan offline menerima konfirmasi komit database.`
       };
     } catch (syncErr) {
       console.warn('[Offline Sync Error]:', syncErr);
+      const remaining = await getAllFromIndexedDb('offline_reports').catch(() => []);
+      setOfflineQueue(remaining);
       return { success: false, error: syncErr.message };
     }
   };

@@ -157,8 +157,8 @@ export default function App() {
   );
 
   // Auth Handlers — only authenticated profiles can enter a role workspace.
-  const handleLoginSuccess = (roleId, accountObj) => {
-    if (!accountObj?.id || !accountObj?.role) {
+  const handleLoginSuccess = (_roleId, accountObj) => {
+    if (!accountObj?.id || !['caregiver', 'supervisor', 'family', 'admin_hr', 'platform_admin'].includes(accountObj?.role)) {
       navigate('/login');
       return;
     }
@@ -166,8 +166,10 @@ export default function App() {
     setIsLoggedIn(true);
     if (accountObj.role === 'caregiver') navigate('/app/caregiver_pwa');
     else if (accountObj.role === 'family') navigate('/app/family_portal');
-    else if (accountObj.role === 'admin_hr') navigate('/app/supervisor_dashboard');
-    else navigate('/app/supervisor_dashboard');
+    else if (accountObj.role === 'admin_hr') navigate('/app/workforce');
+    else if (accountObj.role === 'platform_admin') navigate('/app/admin_agent_health');
+    else if (accountObj.role === 'supervisor') navigate('/app/supervisor_dashboard');
+    else navigate('/login');
   };
 
   const handleLogout = async () => {
@@ -182,8 +184,10 @@ export default function App() {
     : activeRole === 'family'
       ? 'family_portal'
       : activeRole === 'admin_hr'
-        ? 'supervisor_dashboard'
-        : 'supervisor_dashboard';
+        ? 'workforce'
+        : activeRole === 'platform_admin'
+          ? 'admin_agent_health'
+          : 'supervisor_dashboard';
   const defaultPath = `/app/${defaultWorkspace}`;
 
   if (isAuthChecking) {
@@ -277,7 +281,7 @@ export default function App() {
                     title={PAGE_TITLES[location.pathname.replace('/app/', '')] || 'Ruang Kerja'}
                   />
                   <main className="sj-app-main">
-                    {location.pathname.replace('/app/', '') === 'supervisor_dashboard' && ['supervisor', 'admin_hr'].includes(activeRole) && (
+                    {location.pathname.replace('/app/', '') === 'supervisor_dashboard' && activeRole === 'supervisor' && (
                       <CommandCenter
                         activeRole={activeRole}
                         currentUser={currentUser}
@@ -296,11 +300,11 @@ export default function App() {
                     <Routes>
                       <Route index element={<Navigate to={defaultPath} replace />} />
 
-                      {/* Caregiver Mobile Dashboard: Accessible by caregiver, supervisor, admin_hr */}
+                      {/* Caregiver Workspace: caregiver and supervisor oversight only */}
                       <Route
                         path="caregiver_pwa"
                         element={
-                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
                             <CaregiverMobilePage
                               residents={residents}
                               obligations={obligations}
@@ -315,11 +319,11 @@ export default function App() {
                         }
                       />
 
-                      {/* Workforce Page: Accessible by caregiver, supervisor, admin_hr (Family restricted) */}
+                      {/* Workforce Workspace: supervisor and HR */}
                       <Route
                         path="workforce"
                         element={
-                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
                             <WorkforcePage
                               staff={staff}
                               residents={residents}
@@ -331,11 +335,11 @@ export default function App() {
                         }
                       />
 
-                      {/* Supervisor Dashboard: Accessible by supervisor & admin_hr */}
+                      {/* Supervisor Command Center: supervisor only */}
                       <Route
                         path="supervisor_dashboard"
                         element={
-                          <ProtectedAppRoute allowedRoles={['supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
                             <SupervisorDashboardPage
                               obligations={obligations}
                               epistemicFacts={epistemicFacts}
@@ -355,11 +359,11 @@ export default function App() {
                         }
                       />
 
-                      {/* Handover Contract: Accessible by caregiver, supervisor, admin_hr (Family restricted) */}
+                      {/* Handover Contract: caregiver and supervisor only */}
                       <Route
                         path="handover_contract"
                         element={
-                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
                             <HandoverPage
                               handoverContracts={handoverContracts}
                               onSignContract={signHandoverContract}
@@ -378,7 +382,7 @@ export default function App() {
                       <Route
                         path="execution_trace"
                         element={
-                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
                             <ExecutionTracePage
                               obligations={obligations}
                               onOpenTraceModal={setSelectedTrace}
@@ -387,11 +391,11 @@ export default function App() {
                         }
                       />
 
-                      {/* Family Portal: Accessible by family, supervisor, admin_hr */}
+                      {/* Family Portal: family member and authorized supervisor only */}
                       <Route
                         path="family_portal"
                         element={
-                          <ProtectedAppRoute allowedRoles={['family', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['family', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
                             <FamilyPortalPage
                               currentUser={currentUser}
                               residents={residents}
@@ -402,21 +406,21 @@ export default function App() {
                         }
                       />
 
-                      {/* Simulator Lab: Accessible by supervisor & admin_hr */}
+                      {/* Simulator Lab: supervisor-only internal tool */}
                       <Route
                         path="simulator_lab"
                         element={
-                          <ProtectedAppRoute allowedRoles={['supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
                             <SimulatorLabPage staff={staff} obligations={obligations} />
                           </ProtectedAppRoute>
                         }
                       />
 
-                      {/* Rule Library: Accessible by caregiver, supervisor, admin_hr */}
+                      {/* Rule Library: supervisor policy authority only */}
                       <Route
                         path="rule_library"
                         element={
-                          <ProtectedAppRoute allowedRoles={['caregiver', 'supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
                             <RuleLibraryPage
                               rules={rules}
                               setRules={setRules}
@@ -429,21 +433,21 @@ export default function App() {
                         }
                       />
 
-                      {/* Audit Trail: Accessible by supervisor & admin_hr */}
+                      {/* Audit Trail: supervisor decisions and platform security audit */}
                       <Route
                         path="audit_trail"
                         element={
-                          <ProtectedAppRoute allowedRoles={['supervisor', 'admin_hr']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
                             <AuditTrailPage auditTrail={auditTrail} />
                           </ProtectedAppRoute>
                         }
                       />
 
-                      {/* Admin Specific Routes: Accessible by admin_hr & supervisor */}
+                      {/* Platform administration: separate platform_admin role only */}
                       <Route
                         path="admin_agent_health"
                         element={
-                          <ProtectedAppRoute allowedRoles={['admin_hr', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['platform_admin']} fallbackPath={defaultPath} userRole={activeRole}>
                             <AdminAgentHealthPage />
                           </ProtectedAppRoute>
                         }
@@ -451,7 +455,7 @@ export default function App() {
                       <Route
                         path="admin_queue"
                         element={
-                          <ProtectedAppRoute allowedRoles={['admin_hr', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['platform_admin']} fallbackPath={defaultPath} userRole={activeRole}>
                             <AdminQueueMonitorPage />
                           </ProtectedAppRoute>
                         }
@@ -459,7 +463,7 @@ export default function App() {
                       <Route
                         path="admin_security"
                         element={
-                          <ProtectedAppRoute allowedRoles={['admin_hr', 'supervisor']} fallbackPath={defaultPath} userRole={activeRole}>
+                          <ProtectedAppRoute allowedRoles={['platform_admin']} fallbackPath={defaultPath} userRole={activeRole}>
                             <AdminSecurityConfigPage />
                           </ProtectedAppRoute>
                         }

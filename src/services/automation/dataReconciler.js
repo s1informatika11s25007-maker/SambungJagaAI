@@ -15,6 +15,7 @@ export async function runDataReconciliation(facilityContext = 'FAC-001') {
     ? facilityContext
     : (facilityContext?.facilityId || 'FAC-001');
 
+  let epistemicDiscrepanciesFound = 0;
   let epistemicDiscrepanciesHealed = 0;
   let handoverShiftDiscrepanciesHealed = 0;
 
@@ -27,7 +28,20 @@ export async function runDataReconciliation(facilityContext = 'FAC-001') {
       .eq('status', 'CONTRADICTED');
 
     if (facts && facts.length > 0) {
-      epistemicDiscrepanciesHealed = facts.length;
+      epistemicDiscrepanciesFound = facts.length;
+
+      // Atomic Healing: Flag contradicted facts for supervisor review & mark reconciliation audit
+      const { data: healed } = await supabase
+        .from('epistemic_facts')
+        .update({
+          status: 'RECONCILED_FOR_REVIEW',
+          updated_at: new Date().toISOString()
+        })
+        .eq('facility_id', facilityId)
+        .eq('status', 'CONTRADICTED')
+        .select();
+
+      if (healed) epistemicDiscrepanciesHealed = healed.length;
     }
   } catch (err) {
     console.warn('[Data Reconciler] Epistemic reconciliation error:', err.message);
@@ -55,6 +69,7 @@ export async function runDataReconciliation(facilityContext = 'FAC-001') {
   return {
     timestamp: new Date().toISOString(),
     facilityId,
+    epistemicDiscrepanciesFound,
     epistemicDiscrepanciesHealed,
     handoverShiftDiscrepanciesHealed,
     status: 'COMPLETED'

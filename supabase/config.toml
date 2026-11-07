@@ -1,0 +1,22 @@
+# Local Supabase CLI configuration. Link this project to your own Supabase project
+# with `npx supabase link --project-ref <PROJECT_REF>` before applying migrations.
+project_id = "sambungjaga-ai"
+
+[api]
+enabled = true
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]

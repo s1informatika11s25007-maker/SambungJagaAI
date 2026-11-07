@@ -102,29 +102,34 @@ export async function autoCreateShiftEndHandoverDraft({
   staff = []
 }) {
   const draft = synthesizeAutonomousHandoverDraft({ outgoingStaff, incomingStaff, obligations, residents, staff });
+  const isAutoSignEligible = draft.missingEvidenceCount === 0 && draft.criticalRiskCount === 0;
+  const targetStatus = isAutoSignEligible ? 'completed' : 'pending_outgoing';
 
   try {
     const { data, error } = await supabase.from('handover_contracts').insert({
       outgoing_staff_id: draft.outgoingStaffId,
       incoming_staff_id: draft.incomingStaffId,
-      shift_name: `Draf Serah Terima Shift ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`,
+      shift_name: `Kontrak Serah Terima Shift ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`,
       open_obligations_summary: draft.openObligationsSummary,
       competency_gaps_identified: [],
-      contract_status: 'pending_outgoing'
+      contract_status: targetStatus,
+      outgoing_signed_at: isAutoSignEligible ? new Date().toISOString() : null,
+      incoming_signed_at: isAutoSignEligible ? new Date().toISOString() : null
     }).select().single();
 
     if (!error && data) {
-      // Notify incoming caregiver
       if (draft.incomingStaffId) {
         await supabase.from('notifications').insert({
           recipient_role: 'caregiver',
           sender_name: 'Handover Agent',
-          title: 'Draf Serah Terima Shift Siap',
-          message: `Draf serah terima dari ${draft.outgoingStaffName} telah siap. Harap tinjau dan tanda tangani.`,
+          title: isAutoSignEligible ? 'Kontrak Serah Terima Shift Disetujui Otomatis' : 'Draf Serah Terima Shift Siap',
+          message: isAutoSignEligible
+            ? `Kontrak serah terima shift dari ${draft.outgoingStaffName} disetujui & ditandatangani otomatis oleh Agent Mesh.`
+            : `Draf serah terima dari ${draft.outgoingStaffName} telah siap. Harap tinjau dan tanda tangani.`,
           type: 'info'
         });
       }
-      return { success: true, contract: data };
+      return { success: true, contract: data, isAutoSigned: isAutoSignEligible };
     }
   } catch (err) {
     console.warn('Auto create handover contract DB fallback:', err);

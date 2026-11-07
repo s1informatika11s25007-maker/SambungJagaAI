@@ -4,10 +4,15 @@ import { ROLE_LABELS } from '../dashboard/staffService';
 const AUTH_TIMEOUT_MS = 12000;
 
 function withTimeout(promise, ms = AUTH_TIMEOUT_MS) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Koneksi autentikasi terlalu lama. Periksa jaringan lalu coba lagi.')), ms))
-  ]);
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error('Koneksi autentikasi terlalu lama. Periksa jaringan lalu coba lagi.')),
+      ms
+    );
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
 function normalizeProfile(profile, authUser) {
@@ -30,6 +35,7 @@ function normalizeProfile(profile, authUser) {
     avatar: profile.avatar_url || '',
     competencies: profile.competencies || [],
     phone: profile.phone_number || '',
+    facility_id: profile.facility_id || null,
     is_active: profile.is_active !== false
   };
 }
@@ -88,12 +94,18 @@ export async function signUpWithEmailPassword({ fullName, email, password, phone
   if (!data.session) {
     return { needsEmailConfirmation: true, account: null };
   }
-  const account = await getAuthenticatedAccount(data.user);
-  if (!account) {
-    await supabase.auth.signOut();
-    throw new Error('Akun dibuat, tetapi profil belum terbentuk. Periksa trigger profil pada migration database.');
+  try {
+    const account = await getAuthenticatedAccount(data.user);
+    if (!account) {
+      throw new Error('Akun dibuat, tetapi profil belum terbentuk. Periksa trigger profil pada migration database.');
+    }
+    return { needsEmailConfirmation: false, account };
+  } catch (profileError) {
+    if (data.session) {
+      await supabase.auth.signOut().catch(() => {});
+    }
+    throw profileError;
   }
-  return { needsEmailConfirmation: false, account };
 }
 
 export async function signOutUser() {

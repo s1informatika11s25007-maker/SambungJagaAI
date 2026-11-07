@@ -7,7 +7,7 @@
  * - Structured visit requests with rule validation, ticket tracking & visitor verification
  * - Family notification channel preferences & quiet hours in `notification_preferences` table
  * - Auto-categorized complaints with full ticket lifecycle tracking to resolution
- * - Patient consent state machine with database state persistence
+ * - Consent remains fail-closed until a database-backed authorization workflow is configured
  * - Scheduled personalized family digests & response reminder sweep
  */
 
@@ -17,36 +17,42 @@ import { backendSupabase } from '../../supabase/client/backendClient.js';
 const supabase = (typeof window === 'undefined') ? backendSupabase : browserClient;
 import { filterFamilyPortalData } from '../auth/consentDisclosureService.js';
 
-let inMemoryVisitRequests = [];
-let inMemoryComplaints = [];
 const familyPreferencesMap = new Map();
-const consentStateMap = new Map();
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isUuid = (value) => typeof value === 'string' && UUID_RE.test(value);
 
 /**
  * 37. Konfirmasi Penerimaan Informasi — Digitally confirms receipt/read status of clinical digests.
  */
-export async function confirmDisclosureReceipt({ digestId, familyUserId, residentId, facilityId = 'FAC-001' }) {
+export async function confirmDisclosureReceipt({ digestId, familyUserId, residentId, facilityId }) {
+  if (!digestId || !isUuid(familyUserId) || !isUuid(residentId) || !facilityId) {
+    return { success: false, error: 'Identitas keluarga, penghuni, fasilitas, dan ringkasan wajib valid.' };
+  }
   const confirmationRecord = {
-    digestId: digestId || `digest-${Date.now()}`,
-    familyUserId,
-    residentId,
-    confirmedAt: new Date().toISOString()
+    digest_id: String(digestId).slice(0, 120),
+    family_user_id: familyUserId,
+    resident_id: residentId,
+    facility_id: facilityId,
+    confirmed_at: new Date().toISOString()
   };
 
-  try {
-    await supabase.from('audit_trail').insert({
-      facility_id: facilityId,
-      gateway_tag: '[A] Family Liaison Agent',
-      action_name: 'FAMILY_DISCLOSURE_RECEIPT_CONFIRMED',
-      payload: confirmationRecord
-    });
-  } catch (err) {
-    console.warn('[Family Confirmation] DB audit fallback:', err);
+  const { data, error } = await supabase
+    .from('family_disclosure_receipts')
+    .upsert(confirmationRecord, { onConflict: 'family_user_id,digest_id' })
+    .select()
+    .single();
+  if (error || !data) {
+    return { success: false, error: error?.message || 'Server belum mengonfirmasi tanda terima.' };
   }
 
   return {
     success: true,
-    confirmationRecord,
+    confirmationRecord: {
+      digestId: data.digest_id,
+      familyUserId: data.family_user_id,
+      residentId: data.resident_id,
+      confirmedAt: data.confirmed_at
+    },
     message: 'Konfirmasi penerimaan informasi perawatan berhasil dicatat.'
   };
 }
@@ -54,10 +60,12 @@ export async function confirmDisclosureReceipt({ digestId, familyUserId, residen
 /**
  * 39. Preferensi Notifikasi — Saves family channel preferences & quiet hours into DB table `notification_preferences`.
  */
-export function updateFamilyNotificationPreferences(familyUserId, preferences = {}) {
-  const facilityId = preferences.facilityId || 'FAC-001';
+export async function updateFamilyNotificationPreferences(familyUserId, preferences = {}) {
+  const facilityId = preferences.facilityId;
+  if (!isUuid(familyUserId) || !facilityId) {
+    return { success: false, error: 'Identitas akun dan fasilitas terverifikasi wajib tersedia.' };
+  }
 
-  // Strict DB Payload using ONLY valid snake_case columns
   const dbPayload = {
     user_id: familyUserId,
     facility_id: facilityId,
@@ -71,28 +79,27 @@ export function updateFamilyNotificationPreferences(familyUserId, preferences = 
     updated_at: new Date().toISOString()
   };
 
-  try {
-    const table = supabase.from('notification_preferences');
-    if (table && typeof table.upsert === 'function') {
-      table.upsert(dbPayload, { onConflict: 'user_id' }).catch(() => {});
-    } else if (table && typeof table.insert === 'function') {
-      table.insert(dbPayload).catch(() => {});
-    }
-  } catch (_) {}
+  const { data, error } = await supabase
+    .from('notification_preferences')
+    .upsert(dbPayload, { onConflict: 'user_id' })
+    .select()
+    .single();
+  if (error || !data) {
+    return { success: false, error: error?.message || 'Preferensi belum tersimpan di server.' };
+  }
 
-  // Returned object formatted for both camelCase and snake_case consumers
   const returnedObj = {
-    ...dbPayload,
-    inApp: dbPayload.allow_in_app,
-    pushNotification: dbPayload.allow_push,
-    email: dbPayload.allow_email,
-    whatsapp: dbPayload.allow_whatsapp,
-    quietHoursEnabled: dbPayload.quiet_hours_enabled,
-    quietHoursStart: dbPayload.quiet_hours_start,
-    quietHoursEnd: dbPayload.quiet_hours_end
+    ...data,
+    inApp: data.allow_in_app,
+    pushNotification: data.allow_push,
+    email: data.allow_email,
+    whatsapp: data.allow_whatsapp,
+    quietHoursEnabled: data.quiet_hours_enabled,
+    quietHoursStart: data.quiet_hours_start,
+    quietHoursEnd: data.quiet_hours_end,
+    success: true
   };
-
-  familyPreferencesMap.set(familyUserId || 'default', returnedObj);
+  familyPreferencesMap.set(familyUserId, returnedObj);
   return returnedObj;
 }
 
@@ -117,90 +124,70 @@ export function getFamilyNotificationPreferences(familyUserId) {
  */
 export async function updateComplaintStatus({
   complaintId,
-  status = 'resolved', // 'pending' | 'investigating' | 'action_taken' | 'resolved' | 'closed'
+  status = 'resolved',
   resolutionNotes = '',
-  supervisorId = 'supervisor-1',
-  facilityId = 'FAC-001'
+  supervisorId,
+  facilityId
 }) {
-  try {
-    const { data, error } = await supabase
-      .from('family_complaints')
-      .update({
-        status,
-        resolution_notes: resolutionNotes,
-        resolved_by: supervisorId,
-        resolved_at: new Date().toISOString()
-      })
-      .eq('id', complaintId)
-      .select()
-      .single();
-
-    if (!error && data) {
-      await supabase.from('audit_trail').insert({
-        facility_id: facilityId,
-        gateway_tag: '[A] Family Liaison Agent',
-        action_name: 'FAMILY_COMPLAINT_STATUS_UPDATED',
-        payload: { complaintId, status, resolutionNotes, supervisorId }
-      });
-
-      return { success: true, complaint: data };
-    }
-  } catch (err) {
-    console.warn('[Complaint Tracking] Status update fallback:', err);
+  const allowedStatuses = new Set(['pending', 'received', 'investigating', 'action_taken', 'resolved', 'closed']);
+  if (!isUuid(complaintId) || !isUuid(supervisorId) || !facilityId || !allowedStatuses.has(status)) {
+    return { success: false, error: 'Identitas pengaduan/pengawas/fasilitas atau status tidak valid.' };
   }
 
-  const local = inMemoryComplaints.find(c => c.id === complaintId);
-  if (local) {
-    local.status = status;
-    local.resolution_notes = resolutionNotes;
+  const { data, error } = await supabase
+    .from('family_complaints')
+    .update({
+      status,
+      resolution_notes: resolutionNotes,
+      resolved_by: supervisorId,
+      resolved_at: ['resolved', 'closed'].includes(status) ? new Date().toISOString() : null
+    })
+    .eq('id', complaintId)
+    .eq('facility_id', facilityId)
+    .select()
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: error?.message || 'Pengaduan tidak ditemukan atau perubahan belum tersimpan.' };
   }
+
+  const audit = await supabase.from('audit_trail').insert({
+    facility_id: facilityId,
+    gateway_tag: '[A] Family Liaison Agent',
+    action_name: 'FAMILY_COMPLAINT_STATUS_UPDATED',
+    payload: { complaintId, status, resolutionNotes, supervisorId }
+  });
 
   return {
     success: true,
-    complaintId,
-    status,
-    message: `Status pengaduan diperbarui menjadi "${status}".`
+    complaint: data,
+    status: data.status,
+    auditLogged: !audit.error,
+    auditWarning: audit.error?.message
   };
 }
 
 /**
  * 42. Consent Lifecycle Penuh — Manages patient/family consent state machine in database.
  */
-export function updateConsentState({ residentId, consentType = 'MEDICAL_DISCLOSURE', consentStatus = 'GRANTED', grantedBy }) {
-  const key = `${residentId}:${consentType}`;
-  const validUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-  const state = {
-    resident_id: residentId,
-    consent_type: consentType,
-    consent_status: consentStatus, // 'GRANTED' | 'REVOKED' | 'EXPIRED' | 'RENEWED'
-    granted_by: grantedBy || null,
-    valid_until: validUntil,
-    updated_at: new Date().toISOString(),
-    residentId,
-    consentType,
-    consentStatus,
-    validUntil
-  };
-
-  try {
-    supabase.from('audit_trail').insert({
-      gateway_tag: '[A] Family Liaison Agent',
-      action_name: `PATIENT_CONSENT_STATE_UPDATED_${consentStatus}`,
-      payload: state
-    }).catch(() => {});
-  } catch (_) {}
-
-  consentStateMap.set(key, state);
-  return state;
-}
-
-export function getConsentState(residentId, consentType = 'MEDICAL_DISCLOSURE') {
-  const key = `${residentId}:${consentType}`;
-  return consentStateMap.get(key) || {
+export function updateConsentState({ residentId, consentType = 'MEDICAL_DISCLOSURE' }) {
+  return {
     residentId,
     consentType,
     consentStatus: 'PENDING',
-    validUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+    success: false,
+    error: 'Penyimpanan persetujuan belum dikonfigurasi pada database. Akses sensitif tetap ditolak sampai persetujuan dicatat melalui proses resmi.',
+    updated_at: new Date().toISOString()
+  };
+}
+
+export function getConsentState(residentId, consentType = 'MEDICAL_DISCLOSURE') {
+  return {
+    residentId,
+    consentType,
+    consentStatus: 'PENDING',
+    validUntil: null,
+    persisted: false
   };
 }
 
@@ -208,44 +195,53 @@ export function getConsentState(residentId, consentType = 'MEDICAL_DISCLOSURE') 
  * 43. Personalized Family Digest Terjadwal — Persists scheduled PDP-filtered digests to `system_outbox_queue` & `notification_outbox`.
  */
 export async function generateScheduledFamilyDigest({ resident, obligations = [], familyUserId = null }) {
+  if (!resident?.id || !resident?.facility_id) {
+    return { success: false, outboxSaved: false, error: 'Identitas penghuni dan fasilitas wajib berasal dari database.' };
+  }
   const summary = await generateFamilyProgressSummary(resident, obligations);
   const digestId = `digest-sched-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-  const facilityId = resident.facility_id || 'FAC-001';
+  const facilityId = resident.facility_id;
   const idempotencyKey = `digest-sched-${resident.id}-${new Date().toISOString().slice(0, 10)}`;
 
-  let outboxSaved = false;
-
-  try {
-    const { error } = await supabase.from('system_outbox_queue').insert({
+  const { data: queuedEvent, error: queueError } = await supabase
+    .from('system_outbox_queue')
+    .insert({
       facility_id: facilityId,
       event_type: 'FAMILY_DIGEST_SCHEDULED',
       payload: { ...summary, digestId, familyUserId },
       status: 'pending',
       idempotency_key: idempotencyKey,
       scheduled_at: new Date().toISOString()
-    });
+    })
+    .select('id')
+    .single();
 
-    if (!error) outboxSaved = true;
-  } catch (_) {}
+  if (queueError || !queuedEvent) {
+    return { success: false, digestId, idempotencyKey, outboxSaved: false, error: queueError?.message || 'Digest belum masuk antrean.' };
+  }
 
-  try {
-    await supabase.from('notification_outbox').insert({
+  let notificationQueued = false;
+  if (familyUserId) {
+    const { error: notificationError } = await supabase.from('notification_outbox').insert({
       facility_id: facilityId,
-      recipient_user_id: familyUserId || null,
+      recipient_user_id: familyUserId,
       channel: 'family_portal',
       template_id: 'DAILY_FAMILY_DIGEST',
       status: 'queued',
       payload: summary
     });
-  } catch (_) {}
+    notificationQueued = !notificationError;
+  }
 
   return {
+    success: true,
     digestId,
     idempotencyKey,
-    outboxSaved,
+    outboxSaved: true,
+    notificationQueued,
     scheduledFor: new Date().toISOString().split('T')[0],
     digestContent: summary,
-    dispatchStatus: 'SCHEDULED'
+    dispatchStatus: 'QUEUED'
   };
 }
 
@@ -264,65 +260,62 @@ export async function scheduleDailyFamilyDigests({ residents = [], obligations =
 /**
  * 44. Family Response Reminder — Dispatches actual reminders to family members and supervisors for pending items.
  */
-export async function runFamilyResponseReminderSweep({ facilityId = 'FAC-001' } = {}) {
-  let pendingVisits = [];
-  let pendingComplaints = [];
-
-  try {
-    const { data: visitData } = await supabase
-      .from('family_visit_requests')
-      .select('*')
-      .eq('facility_id', facilityId)
-      .eq('status', 'pending_review');
-
-    if (visitData) pendingVisits = visitData;
-
-    const { data: complaintData } = await supabase
-      .from('family_complaints')
-      .select('*')
-      .eq('facility_id', facilityId)
-      .eq('status', 'pending');
-
-    if (complaintData) pendingComplaints = complaintData;
-  } catch (_) {}
-
-  let remindersSent = 0;
-
-  for (const visit of pendingVisits) {
-    try {
-      await supabase.from('notifications').insert({
-        facility_id: facilityId,
-        recipient_role: 'supervisor',
-        sender_name: 'Family Liaison Agent',
-        title: `REMINDER: Permintaan Kunjungan (${visit.ticket_number})`,
-        message: `Permintaan kunjungan untuk ${visit.resident_name} (${visit.proposed_date}) memerlukan peninjauan supervisor.`,
-        type: 'urgent'
-      });
-      remindersSent++;
-    } catch (_) {}
+export async function runFamilyResponseReminderSweep({ facilityId } = {}) {
+  if (!facilityId) {
+    return { success: false, status: 'CONFIGURATION_ERROR', error: 'facilityId wajib ditentukan.' };
   }
 
-  for (const cmp of pendingComplaints) {
-    try {
-      await supabase.from('notifications').insert({
-        facility_id: facilityId,
-        recipient_role: cmp.target_role || 'supervisor',
-        sender_name: 'Family Liaison Agent',
-        title: `REMINDER: Pengaduan Keluarga (${cmp.ticket_number})`,
-        message: `Pengaduan terkait ${cmp.resident_name} (${cmp.severity}) belum ditindaklanjuti.`,
-        type: 'urgent'
-      });
-      remindersSent++;
-    } catch (_) {}
+  const { data: pendingVisits, error: visitError } = await supabase
+    .from('family_visit_requests')
+    .select('*')
+    .eq('facility_id', facilityId)
+    .eq('status', 'pending_review');
+  if (visitError) return { success: false, status: 'QUERY_FAILED', error: visitError.message };
+
+  const { data: pendingComplaints, error: complaintError } = await supabase
+    .from('family_complaints')
+    .select('*')
+    .eq('facility_id', facilityId)
+    .in('status', ['received', 'pending', 'investigating']);
+  if (complaintError) return { success: false, status: 'QUERY_FAILED', error: complaintError.message };
+
+  let remindersSent = 0;
+  const errors = [];
+  for (const visit of (pendingVisits || [])) {
+    const { error } = await supabase.from('notifications').insert({
+      facility_id: facilityId,
+      recipient_role: 'supervisor',
+      sender_name: 'Family Liaison Agent',
+      title: `REMINDER: Permintaan Kunjungan (${visit.ticket_number})`,
+      message: `Permintaan kunjungan untuk ${visit.resident_name} (${visit.proposed_date}) memerlukan peninjauan supervisor.`,
+      type: 'urgent'
+    });
+    if (error) errors.push(error.message);
+    else remindersSent++;
+  }
+
+  for (const complaint of (pendingComplaints || [])) {
+    const { error } = await supabase.from('notifications').insert({
+      facility_id: facilityId,
+      recipient_role: complaint.target_role || 'supervisor',
+      sender_name: 'Family Liaison Agent',
+      title: `REMINDER: Pengaduan Keluarga (${complaint.ticket_number})`,
+      message: `Pengaduan terkait ${complaint.resident_name} (${complaint.severity}) belum ditindaklanjuti.`,
+      type: 'urgent'
+    });
+    if (error) errors.push(error.message);
+    else remindersSent++;
   }
 
   return {
+    success: errors.length === 0,
     checkedAt: new Date().toISOString(),
     facilityId,
-    pendingVisitsCount: pendingVisits.length,
-    pendingComplaintsCount: pendingComplaints.length,
+    pendingVisitsCount: pendingVisits?.length || 0,
+    pendingComplaintsCount: pendingComplaints?.length || 0,
     remindersSent,
-    status: 'COMPLETED'
+    errors,
+    status: errors.length === 0 ? 'COMPLETED' : 'PARTIAL_FAILURE'
   };
 }
 
@@ -364,69 +357,47 @@ export async function submitFamilyVisitRequest({
   proposedTime,
   visitorCount = 1,
   notes = '',
-  facilityId = 'FAC-001'
+  facilityId
 }) {
-  const hour = parseInt(proposedTime?.split(':')[0] || '10', 10);
-  const isValidHours = hour >= 9 && hour <= 17;
-  const autoApproved = isValidHours && visitorCount <= 3;
-  const status = autoApproved ? 'approved' : 'pending_review';
-
-  const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
-  const ticketNumber = `TKT-VISIT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-  const requestRecord = {
-    id: uuid,
-    ticket_number: ticketNumber,
-    facility_id: facilityId,
-    family_user_id: (familyUserId && familyUserId.includes('-')) ? familyUserId : null,
-    resident_id: (residentId && residentId.includes('-')) ? residentId : null,
-    resident_name: residentName || 'Penghuni',
-    proposed_date: proposedDate,
-    proposed_time: proposedTime,
-    visitor_count: visitorCount,
-    notes,
-    status,
-    created_at: new Date().toISOString()
-  };
-
-  let dbSaved = false;
-
-  try {
-    const { data, error } = await supabase
-      .from('family_visit_requests')
-      .insert([requestRecord])
-      .select()
-      .single();
-
-    if (!error && data) {
-      dbSaved = true;
-      inMemoryVisitRequests.unshift(data);
-    } else {
-      inMemoryVisitRequests.unshift(requestRecord);
-    }
-  } catch (err) {
-    inMemoryVisitRequests.unshift(requestRecord);
+  if (!isUuid(familyUserId) || !isUuid(residentId) || !facilityId || !residentName) {
+    return { success: false, error: 'Akun keluarga, penghuni, dan fasilitas harus terverifikasi.' };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(proposedDate || '') || !/^([01]\d|2[0-3]):[0-5]\d$/.test(proposedTime || '')) {
+    return { success: false, error: 'Tanggal atau jam kunjungan tidak valid.' };
+  }
+  if (new Date(`${proposedDate}T${proposedTime}:00`) < new Date() || !Number.isInteger(Number(visitorCount)) || visitorCount < 1 || visitorCount > 5) {
+    return { success: false, error: 'Tanggal tidak boleh di masa lalu dan jumlah pengunjung harus 1–5 orang.' };
   }
 
-  try {
-    await supabase.from('notifications').insert({
-      facility_id: facilityId,
-      recipient_role: 'supervisor',
-      sender_name: 'Family Liaison Agent',
-      title: `Permintaan Kunjungan Baru (${ticketNumber})`,
-      message: `Kunjungan untuk ${residentName} pada ${proposedDate} jam ${proposedTime} (${visitorCount} orang). Status: ${autoApproved ? 'Disetujui Otomatis' : 'Menunggu Peninjauan'}.`,
-      type: 'info'
-    });
-  } catch (_) {}
+  const ticketNumber = `TKT-VISIT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const requestRecord = {
+    ticket_number: ticketNumber,
+    facility_id: facilityId,
+    family_user_id: familyUserId,
+    resident_id: residentId,
+    resident_name: residentName,
+    proposed_date: proposedDate,
+    proposed_time: proposedTime,
+    visitor_count: Number(visitorCount),
+    notes: String(notes || '').slice(0, 1000),
+    status: 'pending_review'
+  };
+
+  const { data, error } = await supabase
+    .from('family_visit_requests')
+    .insert(requestRecord)
+    .select()
+    .single();
+  if (error || !data) {
+    return { success: false, dbSaved: false, error: error?.message || 'Permintaan kunjungan belum diterima server.' };
+  }
 
   return {
     success: true,
-    dbSaved,
+    dbSaved: true,
     ticketNumber,
-    request: inMemoryVisitRequests[0] || requestRecord,
-    message: autoApproved
-      ? `Permintaan kunjungan (${ticketNumber}) disetujui otomatis sesuai aturan jam besuk. Tersimpan di database.`
-      : `Permintaan kunjungan (${ticketNumber}) tersimpan di antrean dan menunggu persetujuan supervisor.`
+    request: data,
+    message: `Permintaan kunjungan (${ticketNumber}) diterima dan menunggu peninjauan supervisor.`
   };
 }
 
@@ -439,79 +410,55 @@ export async function submitFamilyComplaint({
   residentName,
   category = 'general',
   complaintText,
-  facilityId = 'FAC-001'
+  facilityId
 }) {
-  if (!complaintText || !complaintText.trim()) {
+  if (!complaintText || !String(complaintText).trim()) {
     return { success: false, error: 'Isi pengaduan/masukan tidak boleh kosong.' };
+  }
+  if (!isUuid(familyUserId) || !isUuid(residentId) || !facilityId || !residentName) {
+    return { success: false, error: 'Akun keluarga, penghuni, dan fasilitas harus terverifikasi.' };
   }
 
   const textLower = complaintText.toLowerCase();
   let severity = 'routine';
   let targetRole = 'supervisor';
-
   if (/obat|jatuh|demam|sesak|nyeri|luka|suntik|medis/i.test(textLower)) {
     severity = 'critical';
-    targetRole = 'supervisor';
   } else if (/makanan|kebersihan|pakaian|kamar|layanan/i.test(textLower)) {
     severity = 'important';
     targetRole = 'admin_hr';
   }
 
-  const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
   const ticketNumber = `TKT-CMP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
-
   const complaintRecord = {
-    id: uuid,
     ticket_number: ticketNumber,
     facility_id: facilityId,
-    family_user_id: (familyUserId && familyUserId.includes('-')) ? familyUserId : null,
-    resident_id: (residentId && residentId.includes('-')) ? residentId : null,
-    resident_name: residentName || 'Penghuni',
+    family_user_id: familyUserId,
+    resident_id: residentId,
+    resident_name: residentName,
     category,
-    complaint_text: complaintText.trim(),
+    complaint_text: String(complaintText).trim().slice(0, 4000),
     severity,
     target_role: targetRole,
-    status: 'pending',
-    acknowledged_by_family: false,
-    created_at: new Date().toISOString()
+    status: 'received',
+    acknowledged_by_family: false
   };
 
-  let dbSaved = false;
-
-  try {
-    const { data, error } = await supabase
-      .from('family_complaints')
-      .insert([complaintRecord])
-      .select()
-      .single();
-
-    if (!error && data) {
-      dbSaved = true;
-      inMemoryComplaints.unshift(data);
-    } else {
-      inMemoryComplaints.unshift(complaintRecord);
-    }
-  } catch (err) {
-    inMemoryComplaints.unshift(complaintRecord);
+  const { data, error } = await supabase
+    .from('family_complaints')
+    .insert(complaintRecord)
+    .select()
+    .single();
+  if (error || !data) {
+    return { success: false, dbSaved: false, error: error?.message || 'Pengaduan belum diterima server.' };
   }
-
-  try {
-    await supabase.from('notifications').insert({
-      facility_id: facilityId,
-      recipient_role: targetRole,
-      sender_name: 'Family Liaison Agent',
-      title: `Tiket Pengaduan (${ticketNumber}) - ${severity.toUpperCase()}`,
-      message: `Pengaduan terkait ${residentName}: "${complaintText.substring(0, 60)}...". Diteruskan ke ${targetRole}.`,
-      type: severity === 'critical' ? 'urgent' : 'info'
-    });
-  } catch (_) {}
 
   return {
     success: true,
-    dbSaved,
+    dbSaved: true,
     ticketNumber,
-    complaint: inMemoryComplaints[0] || complaintRecord,
-    message: `Tiket pengaduan (${ticketNumber}) berhasil dibuat, dikategorikan (${severity}), dan diteruskan ke ${targetRole}. Tersimpan di database.`
+    complaint: data,
+    message: `Pengaduan (${ticketNumber}) diterima dengan tingkat ${severity} dan menunggu tindak lanjut petugas.`
   };
 }
 
@@ -521,8 +468,10 @@ export async function fetchFamilyVisitRequests(residentId) {
     if (residentId) query = query.eq('resident_id', residentId);
     const { data, error } = await query;
     if (!error && data) return data;
-  } catch (_) {}
-  return inMemoryVisitRequests.filter(r => !residentId || r.resident_id === residentId);
+  } catch (error) {
+    console.warn('[Family visits] Database read failed:', error);
+  }
+  return [];
 }
 
 export async function fetchFamilyComplaints(residentId) {
@@ -531,8 +480,10 @@ export async function fetchFamilyComplaints(residentId) {
     if (residentId) query = query.eq('resident_id', residentId);
     const { data, error } = await query;
     if (!error && data) return data;
-  } catch (_) {}
-  return inMemoryComplaints.filter(c => !residentId || c.resident_id === residentId);
+  } catch (error) {
+    console.warn('[Family complaints] Database read failed:', error);
+  }
+  return [];
 }
 
 export const getFamilyVisitRequests = fetchFamilyVisitRequests;

@@ -2,19 +2,17 @@ import React, { useEffect } from 'react';
 import {
   X,
   ArrowDown,
-  ArrowRight,
   ShieldCheck,
   Lock,
   CheckCircle2,
-  AlertTriangle,
   GitCommit,
   Cpu,
   Database,
   Smartphone,
   Users,
-  Layers,
   FileCheck
 } from 'lucide-react';
+
 export default function ArchitectureModal({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return;

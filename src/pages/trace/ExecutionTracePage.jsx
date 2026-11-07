@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GitPullRequest, Eye, CheckCircle2, ShieldCheck, Database, Layers, ArrowRight, X } from 'lucide-react';
+import { GitPullRequest, Eye, CheckCircle2, Database, ArrowRight } from 'lucide-react';
 import ExecutionTraceModal from '../../components/trace/ExecutionTraceModal';
 
 export default function ExecutionTracePage({ obligations, onOpenTraceModal }) {

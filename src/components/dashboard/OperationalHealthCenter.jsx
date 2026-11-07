@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Server, AlertTriangle, RefreshCw, CheckCircle2, ShieldAlert, Cpu } from 'lucide-react';
 import { getSystemHealthOverview } from '../../services/monitoring/operationalHealthService';
-import { processOutboxQueue, replayDeadLetterItem, fetchDeadLetterQueue } from '../../services/automation/eventBus';
+import { processOutboxQueue, replayDeadLetterItem } from '../../services/automation/eventBus';
 import { runSlaWatchdogSweep } from '../../services/automation/slaWatchdog';
 import { runDataReconciliation } from '../../services/automation/dataReconciler';
 import { runStuckProcessRecovery } from '../../services/automation/stuckProcessRecovery';

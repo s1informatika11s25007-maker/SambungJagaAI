@@ -236,18 +236,20 @@ export async function handleCaregiverAbsence(absentStaffIdOrPayload, facilityId 
     }
   }
 
-  // Emit event for outbox / notification system
+  // Emit event for outbox / notification system with verified facility scope
   await emitSystemEvent('WORKFORCE_ABSENCE_REALLOCATION_DRAFT', {
+    facilityId,
     absentStaffId,
     absentStaffName: absentPerson?.full_name,
     reallocations,
     unassignedCount: unassigned.length,
     requiresApproval: perm.requiresApproval
-  });
+  }, { facilityId });
 
   // Save audit / notification in DB if online
   try {
     await supabase.from('notifications').insert({
+      facility_id: facilityId,
       recipient_role: 'supervisor',
       sender_name: 'Workforce Intelligence Agent',
       title: 'Ketidakhadiran Staf Terdeteksi',

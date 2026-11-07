@@ -1,7 +1,8 @@
 /**
  * SambungJaga AI — Staff & Demo Profiles Directory Service
  *
- * Secure frontend profile fetcher without embedding cleartext passwords in client JS bundles.
+ * All demo credentials (email & password) are fetched dynamically from the database
+ * using the connection configuration in .env. No credentials are hardcoded.
  */
 
 import { supabase } from '../../supabase/client/client';
@@ -10,45 +11,28 @@ export const ROLE_LABELS = {
   caregiver: 'Pengasuh / Perawat',
   supervisor: 'Supervisor Klinis',
   family: 'Wali Keluarga',
-  admin_hr: 'Admin HR / Panti'
+  admin_hr: 'Admin HR / Panti',
+  platform_admin: 'Administrator Platform'
 };
 
-const DEMO_ROLE_ORDER = ['caregiver', 'supervisor', 'family', 'admin_hr'];
+export const ROLE_SHORT_NAMES = {
+  admin_hr: 'Admin',
+  caregiver: 'Staff',
+  supervisor: 'Supervisor',
+  family: 'Keluarga',
+  platform_admin: 'Platform Admin'
+};
 
-export const DEFAULT_FALLBACK_DEMO_ACCOUNTS = [
-  {
-    id: 'demo-caregiver-1',
-    key: 'demo_caregiver_1',
-    name: 'Suster Dewi Pertiwi',
-    role: 'caregiver',
-    roleTitle: ROLE_LABELS.caregiver,
-    email: 'caregiver1@sambungjaga.id'
-  },
-  {
-    id: 'demo-supervisor-1',
-    key: 'demo_supervisor_1',
-    name: 'Ns. Ratna Sari, S.Kep',
-    role: 'supervisor',
-    roleTitle: ROLE_LABELS.supervisor,
-    email: 'supervisor@sambungjaga.id'
-  },
-  {
-    id: 'demo-family-1',
-    key: 'demo_family_1',
-    name: 'Bpk. Rina Wijaya (Anak)',
-    role: 'family',
-    roleTitle: ROLE_LABELS.family,
-    email: 'keluarga1@sambungjaga.id'
-  },
-  {
-    id: 'demo-admin-1',
-    key: 'demo_admin_1',
-    name: 'Hendra Setiawan, S.H.',
-    role: 'admin_hr',
-    roleTitle: ROLE_LABELS.admin_hr,
-    email: 'admin@sambungjaga.id'
-  }
-];
+const DEMO_ROLE_ORDER = ['admin_hr', 'caregiver', 'supervisor', 'family', 'platform_admin'];
+
+// Strict compliance: No hardcoded demo emails or passwords in fallback array
+export const DEFAULT_FALLBACK_DEMO_ACCOUNTS = [];
+
+/** Formats prompt menu demo option label (e.g. "1. Admin (admin@mail.com)") */
+export function formatDemoOptionLabel(account, index) {
+  const roleName = ROLE_SHORT_NAMES[account.role] || account.roleTitle || account.role;
+  return `${index + 1}. ${roleName} (${account.email})`;
+}
 
 /** Fetch real staff profiles allowed by active Supabase RLS policies. */
 export async function fetchStaffProfiles() {
@@ -64,24 +48,43 @@ export async function fetchStaffProfiles() {
 }
 
 /**
- * Retrieve profiles for demo-login directory (Without cleartext password exposure).
+ * Retrieve demo accounts dynamically from the database (strictly 1 account per role).
+ * Credentials (email & password) are fetched dynamically using .env Supabase config.
  */
 export async function fetchDemoAccountsPerRole() {
   const { data, error } = await supabase.rpc('list_demo_login_accounts');
   if (error) throw error;
 
-  const accounts = (data || []).map((profile) => ({
-    id: profile.profile_id,
-    key: `demo_${profile.role}_${profile.profile_id}`,
+  const rawList = (data || []).map((profile) => ({
+    id: profile.profile_id || profile.id,
+    key: `demo_${profile.role}_${profile.profile_id || profile.id}`,
     name: profile.full_name || 'Pengguna SambungJaga',
     role: profile.role,
-    roleTitle: ROLE_LABELS[profile.role] || 'Pengguna',
-    email: profile.email || ''
+    roleTitle: ROLE_LABELS[profile.role] || profile.role,
+    email: profile.email || '',
+    password: profile.password || ''
   })).filter((account) => account.email);
 
-  const uniquePerRole = DEMO_ROLE_ORDER
-    .map((role) => accounts.find((account) => account.role === role))
-    .filter(Boolean);
+  // Group by role to ensure strictly 1 demo account per role
+  const roleMap = new Map();
+  for (const account of rawList) {
+    if (!roleMap.has(account.role)) {
+      roleMap.set(account.role, account);
+    }
+  }
 
-  return uniquePerRole;
+  // Sort by DEMO_ROLE_ORDER then remaining roles
+  const result = [];
+  for (const role of DEMO_ROLE_ORDER) {
+    if (roleMap.has(role)) {
+      result.push(roleMap.get(role));
+      roleMap.delete(role);
+    }
+  }
+  for (const account of roleMap.values()) {
+    result.push(account);
+  }
+
+  return result;
 }
+

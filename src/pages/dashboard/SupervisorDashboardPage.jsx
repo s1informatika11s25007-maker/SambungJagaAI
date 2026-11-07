@@ -1,16 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Clock,
   CheckCircle2,
-  Heart,
   Plus,
   ArrowRight,
   ShieldCheck,
   AlertCircle,
   Activity,
   UserCheck,
-  Check,
-  FileText,
   Users,
   FileSignature
 } from 'lucide-react';
@@ -141,7 +137,7 @@ export default function SupervisorDashboardPage({
   };
 
   return (
-    <div className="space-y-4 w-full text-left font-sans max-w-7xl mx-auto">
+    <div className="space-y-4 w-full text-left font-sans">
 
       {/* Care Debt & Cascade Detector Bar */}
       <CareDebtAlert obligations={obligations} />

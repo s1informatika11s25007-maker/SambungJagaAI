@@ -34,7 +34,12 @@ const directConn = connectionString.replace(':6543/', ':5432/').replace('?pgboun
 console.log('🚀 MENGHUBUNGKAN KE DATABASE SUPABASE...');
 console.log(`🔗 URL: ${directConn.replace(/:[^:@]+@/, ':****@')}\n`);
 
-async function createDatabaseClient(sslReject = false) {
+const sslRejectUnauthorized = (envVars.DB_SSL_REJECT_UNAUTHORIZED || process.env.DB_SSL_REJECT_UNAUTHORIZED || 'true').toLowerCase() !== 'false';
+if (!sslRejectUnauthorized) {
+  console.warn('WARNING: TLS certificate verification is disabled. Do not use this setting in shared or production environments.');
+}
+
+async function createDatabaseClient(sslReject = true) {
   return new Client({
     connectionString: directConn,
     ssl: { rejectUnauthorized: sslReject }
@@ -42,7 +47,7 @@ async function createDatabaseClient(sslReject = false) {
 }
 
 async function runMigrations() {
-  let client = await createDatabaseClient(false);
+  let client = await createDatabaseClient(sslRejectUnauthorized);
 
   try {
     await client.connect();

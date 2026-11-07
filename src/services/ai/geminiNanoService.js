@@ -1,98 +1,196 @@
 /**
- * SambungJaga AI — Chrome Built-in Gemini Nano On-Device AI Engine
+ * SambungJaga AI — Optional Chrome Built-in Gemini Nano Adapter
  *
- * Runs Gemini Nano LLM directly inside Chromium browser (window.ai)
- * Provides 0 ms network latency, 100% offline capability, zero cloud token costs,
- * and maximum PDP medical privacy (data stays on device).
+ * AI is restricted to summarization and human-review suggestions.
+ * Deterministic matching remains authoritative.
  */
 
-/**
- * Checks if Gemini Nano Built-in AI is available in the current browser
- * @returns {Promise<boolean>}
- */
 export async function isGeminiNanoAvailable() {
-  if (typeof window === 'undefined') return false;
-  try {
-    if (window.ai && window.ai.languageModel) {
-      const availability = await window.ai.languageModel.availability();
-      return availability === 'readily' || availability === 'after-download';
-    }
-  } catch (err) {
-    console.warn("Gemini Nano Availability Check Error:", err);
+  if (
+    typeof window === 'undefined' ||
+    !window.ai?.languageModel
+  ) {
+    return false;
   }
-  return false;
+
+  try {
+    const availability =
+      await window.ai.languageModel.availability();
+
+    return (
+      availability === 'readily' ||
+      availability === 'after-download'
+    );
+
+  } catch (error) {
+    console.warn(
+      '[Gemini Nano] Availability check failed:',
+      error
+    );
+
+    return false;
+  }
 }
 
+
 /**
- * Executes Care Superagent Orchestrator using Gemini Nano On-Device
- * @param {string} prompt - Caregiver voice STT or text report
- * @param {Object} context - Resident list, active obligations, etc.
- * @returns {Promise<Object|null>} Structured result or null if unavailable
+ * Runs on-device report analysis.
  */
-export async function runGeminiNanoSuperagent(prompt, context) {
-  const isAvailable = await isGeminiNanoAvailable();
-  if (!isAvailable) return null;
 
-  try {
-    const minifiedResidents = (context?.residents || []).map(r => `${r.full_name} (${r.room_number})`).join(', ');
-    const minifiedObs = (context?.activeObligations || []).map(o => `ID:${o.id} Title:${o.title}`).join(', ');
-
-    const systemPrompt = `Anda SambungJaga AI Care Superagent On-Device (Gemini Nano).
-Daftar Lansia: ${minifiedResidents}
-Tugas Terbuka: ${minifiedObs}
-
-Tugas:
-1. Identifikasi nama lansia dari laporan.
-2. Jika tugas selesai, tentukan autoCloseObligation.
-3. Kembalikan format JSON ONLY:
-{"result":"string ringkasan","detectedResidentName":"string|null","autoCloseObligation":{"obligationId":"string","matchedTitle":"string","completionNote":"string"}|null,"proposedObligations":[]}`;
-
-    const session = await window.ai.languageModel.create({
-      systemPrompt,
-      temperature: 0.1
-    });
-
-    const rawResponse = await session.prompt(`Laporan Caregiver: "${prompt}"`);
-    let parsed;
-    try {
-      parsed = JSON.parse(rawResponse);
-    } catch {
-      parsed = { result: rawResponse };
-    }
-
-    session.destroy?.();
-
-    return {
-      source: 'gemini_nano_on_device',
-      result: parsed.result || 'Laporan berhasil diproses oleh Gemini Nano On-Device AI.',
-      detectedResidentName: parsed.detectedResidentName || null,
-      autoCloseObligation: parsed.autoCloseObligation || null,
-      proposedObligations: parsed.proposedObligations || []
-    };
-  } catch (err) {
-    console.warn("Gemini Nano On-Device Execution failed, falling back to Cloud:", err);
+export async function runGeminiNanoSuperagent(
+  prompt,
+  context = {}
+) {
+  if (!(await isGeminiNanoAvailable())) {
     return null;
   }
+
+  let session;
+
+  try {
+    const residentDirectory =
+      (context?.residents || [])
+        .map(
+          resident =>
+            `${resident.full_name || 'Nama tidak tersedia'} (${resident.room_number || 'kamar tidak tersedia'})`
+        )
+        .join('; ');
+
+    const openTasks =
+      (context?.activeObligations || [])
+        .map(
+          item =>
+            `${item.title || 'Tugas'} [${item.status || 'status tidak tersedia'}]`
+        )
+        .join('; ');
+
+    const systemPrompt = [
+      'Anda adalah asisten pencatatan laporan perawatan SambungJaga.',
+      'Gunakan Bahasa Indonesia yang jelas dan ringkas.',
+
+      `Direktori penghuni untuk konteks saja: ${residentDirectory || 'tidak tersedia'}.`,
+
+      `Tugas aktif untuk konteks saja: ${openTasks || 'tidak tersedia'}.`,
+
+      'Ringkas laporan dan identifikasi fakta yang benar-benar disebutkan.',
+
+      'Jangan membuat diagnosis atau interpretasi klinis.',
+
+      'Jangan memberikan dosis, instruksi klinis, atau perubahan terapi.',
+
+      'Jangan menentukan identitas penghuni secara otoritatif.',
+
+      'Resolver deterministik aplikasi yang menentukan identitas penghuni.',
+
+      'Jangan menyetujui atau menutup kewajiban perawatan.',
+
+      'Semua keputusan membutuhkan petugas berwenang.',
+
+      'Kembalikan JSON saja dengan bentuk:',
+
+      '{"result":"ringkasan laporan","proposedObligations":[{"title":"judul tugas peninjauan","description":"alasan netral","priority":"routine|important|critical","required_evidence_grade":"E0|E1","valid_until_minutes":120}],"modelsChainUsed":["gemini-nano"]}',
+
+      'Jika tidak ada tindak lanjut jelas, gunakan array kosong.'
+    ].join('\n');
+
+    session =
+      await window.ai.languageModel.create({
+        systemPrompt,
+        temperature: 0.1
+      });
+
+    const response = await session.prompt(
+      `Laporan caregiver: ${String(prompt || '').slice(0, 5000)}`
+    );
+
+    let parsed;
+
+    try {
+      parsed = JSON.parse(response);
+    } catch {
+      parsed = {
+        result: String(response || '')
+      };
+    }
+
+    return {
+      result:
+        String(
+          parsed?.result ||
+          'Laporan dianalisis dan menunggu tindak lanjut petugas.'
+        ),
+
+      proposedObligations:
+        Array.isArray(parsed?.proposedObligations)
+          ? parsed.proposedObligations.slice(0, 3)
+          : [],
+
+      modelsChainUsed: [
+        'gemini-nano'
+      ]
+    };
+
+  } catch (error) {
+    console.warn(
+      '[Gemini Nano] On-device analysis unavailable:',
+      error
+    );
+
+    return null;
+
+  } finally {
+    try {
+      session?.destroy?.();
+    } catch {
+      // Browser AI runtime cleanup may fail.
+    }
+  }
 }
 
+
 /**
- * Summarizes Shift Handover logs using Gemini Nano Summarizer API
- * @param {string} handoverLogsText
- * @returns {Promise<string|null>}
+ * Optional handover summary helper.
  */
-export async function summarizeHandoverGeminiNano(handoverLogsText) {
+
+export async function summarizeHandoverGeminiNano(
+  handoverLogsText
+) {
+  if (
+    typeof window === 'undefined' ||
+    !window.ai?.summarizer
+  ) {
+    return null;
+  }
+
+  let summarizer;
+
   try {
-    if (typeof window !== 'undefined' && window.ai && window.ai.summarizer) {
-      const summarizer = await window.ai.summarizer.create({
+    summarizer =
+      await window.ai.summarizer.create({
         type: 'headline',
         length: 'short'
       });
-      const summary = await summarizer.summarize(handoverLogsText);
-      summarizer.destroy?.();
-      return `[Gemini Nano On-Device Summary] ${summary}`;
+
+    const summary =
+      await summarizer.summarize(
+        String(handoverLogsText || '').slice(0, 8000)
+      );
+
+    return String(summary || '').trim() || null;
+
+  } catch (error) {
+    console.warn(
+      '[Gemini Nano] Handover summary unavailable:',
+      error
+    );
+
+    return null;
+
+  } finally {
+    try {
+      summarizer?.destroy?.();
+    } catch {
+      // Ignore cleanup errors.
     }
-  } catch (err) {
-    console.warn("Gemini Nano Summarizer error:", err);
   }
-  return null;
 }

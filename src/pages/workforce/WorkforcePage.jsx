@@ -10,7 +10,7 @@
  */
 
 import React, { useState } from 'react';
-import { Users, Clock, Award, ShieldAlert, Calendar, CheckCircle2, UserCheck, AlertTriangle } from 'lucide-react';
+import { Users, Calendar, CheckCircle2, UserCheck, AlertTriangle } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import { validateAcuityStaffingRatio, getTrainingComplianceMatrix, draftShiftRoster } from '../../services/ai/hrAutonomousAgent';
 

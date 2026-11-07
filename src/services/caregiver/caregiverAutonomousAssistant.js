@@ -1,83 +1,173 @@
 /**
- * SambungJaga AI — Caregiver Autonomous Assistant (End-to-End Workflow)
+ * SambungJaga AI — Caregiver Autonomous Assistant Workflow
  *
- * Automates the 10-step caregiver operational workflow:
- * 1. Voice Report Ingestion & Offline-First Persistence (IndexedDB)
- * 2. STT Transcription & Text Structuring
- * 3. Multi-Factor Resident Identity Resolution (<0.85 flags human verification)
- * 4. Fact Extraction & Bitemporal Obligation Proposal
- * 5. Workforce Competency & Workload Assignment
- * 6. Prioritized Personal Task Dashboard & Countdown
- * 7. Physical Care Execution
- * 8. Photo Evidence Capture, SHA-256 Attestation & Private Storage Upload
- * 9. Atomic Obligation Closure & Status Update
- * 10. Automated Shift Work Recap Synthesis
+ * Database success is reported only when the unified pipeline receives
+ * acknowledgement from Supabase.
  */
 
-import { saveVoiceRecordToOfflineOutbox } from '../offline/offlineVoiceOutbox';
-import { processUnifiedVoiceReport } from './unifiedVoicePipeline';
-import { generatePersonalCaregiverDashboard } from './personalCaregiverAssistant';
-import { submitEvidenceAndCloseObligationAtomic } from './evidenceVerifier';
-import { synthesizeAutonomousHandoverDraft } from '../handover/handoverContractService';
+import {
+  processUnifiedVoiceReport
+} from './unifiedVoicePipeline';
+
+import {
+  generatePersonalCaregiverDashboard
+} from './personalCaregiverAssistant';
+
+import {
+  submitEvidenceAndCloseObligationAtomic
+} from './evidenceVerifier';
+
+import {
+  synthesizeAutonomousHandoverDraft
+} from '../handover/handoverContractService';
+
 
 /**
- * 1-4. Processes a caregiver voice or text report end-to-end autonomously.
+ * Processes an already-transcribed caregiver report.
  */
+
 export async function processCaregiverReportAutonomous({
   audioBase64 = null,
   textPrompt = '',
   caregiverId = null,
+  currentUser = null,
   residents = [],
   activeObligations = [],
-  facilityId = 'FAC-001'
-}) {
+  epistemicFacts = [],
+  facilityId = null,
+  sourceType = null
+} = {}) {
   const now = new Date().toISOString();
 
-  // 1. Save locally to IndexedDB first (True Offline-First)
-  await saveVoiceRecordToOfflineOutbox({
-    audioBase64,
-    transcript: textPrompt,
-    recordedAt: now
-  });
+  const transcript = String(
+    textPrompt || ''
+  ).trim();
 
-  // 2-4. Execute Unified Voice-to-Ledger Pipeline
+  if (!transcript) {
+    return {
+      success: false,
+      status: 'TRANSCRIPTION_REQUIRED',
+
+      error:
+        'Transkrip teks belum tersedia. Audio tidak boleh dianggap sudah ditranskripsi.'
+    };
+  }
+
+  const resolvedFacilityId =
+    facilityId ||
+    currentUser?.facility_id ||
+    residents.find(
+      resident => resident?.facility_id
+    )?.facility_id ||
+    null;
+
   const pipeline = await processUnifiedVoiceReport({
     audioBase64,
-    textPrompt,
+    textPrompt: transcript,
     residents,
     activeObligations,
-    facilityId
+    epistemicFacts,
+    currentUser,
+    caregiverId,
+    facilityId: resolvedFacilityId,
+
+    sourceType:
+      sourceType ||
+      (audioBase64 ? 'voice_stt' : 'text_input')
   });
 
-  const requiresHumanConfirm = pipeline.residentMatch?.requiresHumanVerification === true;
+  if (pipeline?.success !== true) {
+    return {
+      success: false,
+
+      status:
+        pipeline?.status || 'PIPELINE_FAILED',
+
+      error:
+        pipeline?.error ||
+        'Laporan belum berhasil diproses dan disimpan.',
+
+      processedAt:
+        pipeline?.processedAt || now,
+
+      residentMatch:
+        pipeline?.residentMatch || null,
+
+      residentCandidates:
+        pipeline?.residentCandidates || [],
+
+      requiresHumanConfirm:
+        pipeline?.requiresHumanConfirm === true ||
+        pipeline?.needsResidentConfirmation === true,
+
+      superagentResult:
+        pipeline?.superagentResult || null,
+
+      isDuplicate:
+        pipeline?.isDuplicate === true
+    };
+  }
 
   return {
     success: true,
+
+    status: pipeline.status,
+
     processedAt: now,
-    residentMatch: pipeline.residentMatch,
-    requiresHumanConfirm,
-    superagentResult: pipeline.superagentResult,
-    status: requiresHumanConfirm ? 'HUMAN_CONFIRMATION_REQUIRED' : 'AUTOMATED'
+
+    residentMatch:
+      pipeline.residentMatch,
+
+    residentCandidates:
+      pipeline.residentCandidates || [],
+
+    requiresHumanConfirm: false,
+
+    superagentResult:
+      pipeline.superagentResult,
+
+    persisted:
+      pipeline.persisted,
+
+    auditLogged:
+      pipeline.auditLogged,
+
+    message:
+      pipeline.message
   };
 }
 
-/**
- * 6. Fetches prioritized personal caregiver work list.
- */
-export function getPrioritizedCaregiverTasks({ caregiverId, obligations = [], residents = [], staff = [] }) {
-  return generatePersonalCaregiverDashboard({ caregiverId, obligations, residents, staff });
-}
 
 /**
- * 8 & 9. Submits evidence and closes task atomically in database.
+ * Personal caregiver dashboard.
  */
+
+export function getPrioritizedCaregiverTasks({
+  caregiverId,
+  obligations = [],
+  residents = [],
+  staff = []
+}) {
+  return generatePersonalCaregiverDashboard({
+    caregiverId,
+    obligations,
+    residents,
+    staff
+  });
+}
+
+
+/**
+ * Evidence submission.
+ */
+
 export async function submitCaregiverTaskEvidence({
   obligationId,
   evidenceGrade = 'E1',
   evidencePayload = {},
   imageDataUrl = null,
-  facilityId = 'FAC-001'
-}) {
+  facilityId = null
+} = {}) {
   return submitEvidenceAndCloseObligationAtomic({
     obligationId,
     evidenceGrade,
@@ -87,12 +177,28 @@ export async function submitCaregiverTaskEvidence({
   });
 }
 
+
 /**
- * 10. Generates automated daily/shift work recap for caregiver.
+ * Shift recap.
  */
-export async function generateCaregiverShiftRecap({ caregiverId, caregiverName, obligations = [], shiftName = 'Pagi' }) {
-  const myClosed = obligations.filter(o => o.assigned_caregiver_id === caregiverId && o.status === 'verified_closed');
-  const myPending = obligations.filter(o => o.assigned_caregiver_id === caregiverId && o.status !== 'verified_closed');
+
+export async function generateCaregiverShiftRecap({
+  caregiverId,
+  caregiverName,
+  obligations = [],
+  shiftName = 'Pagi'
+}) {
+  const myClosed = obligations.filter(
+    item =>
+      item.assigned_caregiver_id === caregiverId &&
+      item.status === 'verified_closed'
+  );
+
+  const myPending = obligations.filter(
+    item =>
+      item.assigned_caregiver_id === caregiverId &&
+      item.status !== 'verified_closed'
+  );
 
   const handover = await synthesizeAutonomousHandoverDraft({
     outgoingStaffId: caregiverId,
@@ -104,9 +210,18 @@ export async function generateCaregiverShiftRecap({ caregiverId, caregiverName, 
     caregiverId,
     caregiverName,
     shiftName,
-    recapTimestamp: new Date().toISOString(),
-    closedTaskCount: myClosed.length,
-    pendingTaskCount: myPending.length,
-    handoverSummary: handover.handoverContract?.open_obligations_summary || `Shift ${shiftName}: ${myClosed.length} tugas selesai, ${myPending.length} tugas terbuka.`
+
+    recapTimestamp:
+      new Date().toISOString(),
+
+    closedTaskCount:
+      myClosed.length,
+
+    pendingTaskCount:
+      myPending.length,
+
+    handoverSummary:
+      handover?.handoverContract?.open_obligations_summary ||
+      `Shift ${shiftName}: ${myClosed.length} tugas berstatus selesai dan ${myPending.length} tugas masih terbuka.`
   };
 }

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Loader2, Check, AlertCircle, X, ShieldCheck, RefreshCw, QrCode, Upload, AlertTriangle } from 'lucide-react';
+import { Camera, Loader2, Check, X, ShieldCheck, RefreshCw, QrCode, Upload, AlertTriangle } from 'lucide-react';
 import { EVIDENCE_GRADE } from '../../types/core/architecture';
 import { scanBedQrCodeNative } from '../../services/ai/nativeChromeService';
 import { processRealCameraEvidence } from '../../services/ai/realVisionOcrService';
@@ -115,6 +115,7 @@ export default function VisionCameraModal({ isOpen, onClose, obligation, onSubmi
     const res = await onSubmitEvidence({
       obligationId: obligation.id,
       evidenceGrade: EVIDENCE_GRADE.E1,
+      imageDataUrl: capturedImage,
       payload,
       actorName: currentUser?.name || currentUser?.full_name || 'Caregiver'
     });
@@ -122,7 +123,7 @@ export default function VisionCameraModal({ isOpen, onClose, obligation, onSubmi
     if (!res.success) {
       setFeedback({ type: 'error', text: res.error });
     } else {
-      setFeedback({ type: 'success', text: res.requiresHumanApproval ? 'Bukti tersimpan. Tugas menunggu pemeriksaan supervisor.' : 'Bukti tersimpan dan tugas ditutup.' });
+      setFeedback({ type: 'success', text: 'Bukti tersimpan dan menunggu pemeriksaan supervisor.' });
       setTimeout(() => {
         setFeedback(null);
         onClose();

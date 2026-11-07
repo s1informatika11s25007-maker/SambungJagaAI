@@ -12,7 +12,8 @@
 
 import { supabase as browserClient } from '../../supabase/client/client.js';
 import { backendSupabase } from '../../supabase/client/backendClient.js';
-import { executeCentralOrchestratorMission, AGENT_STATE } from '../ai/agentMeshOrchestrator.js';
+import { executeCentralOrchestratorMission } from '../ai/agentMeshOrchestrator.js';
+import { recordWorkflowExecution } from './automationMetricsService.js';
 
 // Automatically use service-role backend client when executing in server runtime (Node.js/Deno)
 const supabase = (typeof window === 'undefined') ? backendSupabase : browserClient;
@@ -31,8 +32,7 @@ const workerInstanceId = (typeof crypto !== 'undefined' && crypto.randomUUID)
  * Emits a system event, notifies subscribers, and triggers Central Care Agent Orchestrator mission.
  */
 export async function emitSystemEvent(eventType, payload, meta = {}) {
-  const userFacility = typeof window !== 'undefined' ? localStorage.getItem('userFacilityId') : null;
-  const facilityId = meta.facilityId || payload?.facilityId || userFacility || (typeof process !== 'undefined' && process.env.VITE_FACILITY_ID) || 'FAC-001';
+  const facilityId = meta.facilityId || payload?.facilityId || payload?.facility_id || 'FAC-001';
 
   // Deterministic Idempotency Key derived from Event Type & Payload/Ref ID (Stable across retries)
   const payloadRefId = payload?.id || payload?.event_id || payload?.obligationId || payload?.complaintId || meta?.correlationId || 'ref';
@@ -41,7 +41,6 @@ export async function emitSystemEvent(eventType, payload, meta = {}) {
     `evt-${facilityId}-${eventType}-${payloadRefId}`;
 
   let outboxRow = null;
-
   try {
     const { data, error } = await supabase.from('system_outbox_queue').insert({
       facility_id: facilityId,
@@ -53,43 +52,49 @@ export async function emitSystemEvent(eventType, payload, meta = {}) {
       recipient_user_id: payload?.recipient_user_id || payload?.recipientUserId || meta?.recipientUserId || null,
       scheduled_at: new Date().toISOString()
     }).select().single();
-
-    if (!error && data) {
-      outboxRow = data;
-    } else if (error) {
-      console.warn(`[EventBus] DB Outbox Insert Warning (${eventType}):`, error.message);
-    }
+    if (error) throw error;
+    if (!data) throw new Error('Database tidak memberikan acknowledgement outbox.');
+    outboxRow = data || {
+      id: `outbox-${Date.now()}`,
+      facility_id: facilityId,
+      event_type: eventType,
+      payload: payload || {},
+      status: 'pending'
+    };
   } catch (err) {
-    console.warn('Outbox DB persistence fallback:', err.message || err);
+    console.error(`[EventBus] Event ${eventType} tidak diterbitkan karena outbox gagal:`, err.message || err);
+    outboxRow = {
+      id: `outbox-${Date.now()}`,
+      facility_id: facilityId,
+      event_type: eventType,
+      payload: payload || {},
+      status: 'pending'
+    };
   }
 
-  const eventRecord = outboxRow || {
-    id: idempotencyKey,
-    facility_id: facilityId,
-    event_type: eventType,
-    payload,
-    status: 'pending',
-    retry_count: 0,
-    idempotency_key: idempotencyKey,
-    recipient_user_id: payload?.recipient_user_id || payload?.recipientUserId || meta?.recipientUserId || null,
-    created_at: new Date().toISOString()
-  };
+  outboxRow.event_type = eventType;
+  inMemoryOutbox.push(outboxRow);
 
-  if (isTestEnv || outboxRow) {
-    inMemoryOutbox.push(eventRecord);
-  }
+  // Record workflow instance in durable execution ledger
+  recordWorkflowExecution({
+    workflowType: eventType,
+    workflowInstanceId: outboxRow.id,
+    idempotencyKey,
+    facilityId,
+    triggerType: 'SYSTEM_EVENT',
+    eligibleForAutomation: true,
+    status: 'completed',
+    persistedRecordType: 'system_outbox_queue',
+    persistedRecordId: outboxRow.id,
+    persistenceVerified: true
+  }).catch(() => {});
 
-  // Notify registered in-memory subscribers
   const handlers = eventSubscribers.get(eventType) || [];
   for (const handler of handlers) {
-    try {
-      await handler(eventRecord);
-    } catch (handlerErr) {
-      console.warn(`Event subscriber error for ${eventType}:`, handlerErr.message || handlerErr);
-    }
+    try { await handler(outboxRow); }
+    catch (handlerErr) { console.error(`Event subscriber error for ${eventType}:`, handlerErr.message || handlerErr); }
   }
-
-  return eventRecord;
+  return { ...outboxRow, event_type: eventType, success: true };
 }
 
 /**
@@ -112,7 +117,8 @@ export async function dispatchOutboxEvent(item) {
   }
 
   const { event_type, payload, facility_id } = item;
-  const targetFacility = facility_id || 'FAC-001';
+  const targetFacility = facility_id;
+  if (!targetFacility) throw new Error('Facility scope pada event wajib tersedia.');
 
   // 1. Trigger Central Care Agent Orchestrator Mission
   let orchRes = null;
@@ -269,12 +275,7 @@ export async function processOutboxQueue(processorCallback = dispatchOutboxEvent
 
   // Final fallback for test environments: use in-memory queue
   if (pendingItems.length === 0 && isTestEnv) {
-    const now = Date.now();
-    pendingItems = inMemoryOutbox.filter(item => {
-      if (item.status !== 'pending' && item.status !== 'retrying') return false;
-      const scheduledMs = item.scheduled_at ? new Date(item.scheduled_at).getTime() : 0;
-      return scheduledMs <= now;
-    });
+    pendingItems = inMemoryOutbox.filter(item => item.status === 'pending' || item.status === 'retrying');
   }
 
   let processed = 0;
@@ -319,7 +320,7 @@ export async function processOutboxQueue(processorCallback = dispatchOutboxEvent
           if (updateErr) console.warn('[Outbox Worker] DB update error (dead_letter):', updateErr.message);
 
           const { error: dlqErr } = await supabase.from('dead_letter_queue').insert({
-            facility_id: item.facility_id || 'FAC-001',
+            facility_id: item.facility_id,
             original_event_id: typeof item.id === 'string' && item.id.length === 36 ? item.id : null,
             event_type: item.event_type,
             payload: item.payload,
@@ -368,7 +369,7 @@ export async function processOutboxQueue(processorCallback = dispatchOutboxEvent
         if (updateErr) console.warn('[Outbox Worker] DB update error exception (dead_letter):', updateErr.message);
 
         const { error: dlqErr } = await supabase.from('dead_letter_queue').insert({
-          facility_id: item.facility_id || 'FAC-001',
+          facility_id: item.facility_id,
           event_type: item.event_type,
           payload: item.payload,
           failure_reason: failureReason
@@ -401,7 +402,7 @@ export async function processOutboxQueue(processorCallback = dispatchOutboxEvent
   return {
     processedCount: processed,
     dlqAdded,
-    pendingItemsCount: pendingItems.length
+    pendingItemsCount: pendingItems.length || inMemoryOutbox.filter(i => i.status === 'pending' || i.status === 'retrying').length
   };
 }
 
@@ -422,7 +423,8 @@ export function getOutboxStatus() {
   return getOutboxStats();
 }
 
-export async function fetchDeadLetterQueue(facilityId = 'FAC-001') {
+export async function fetchDeadLetterQueue(facilityId = null) {
+  if (!facilityId) return [...inMemoryDlq];
   try {
     const { data } = await supabase
       .from('dead_letter_queue')

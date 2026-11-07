@@ -4,10 +4,10 @@ import {
   Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, UserRound
 } from 'lucide-react';
 import { signInWithEmailPassword, getAuthErrorMessage } from '../../services/auth/authService';
-import { fetchDemoAccountsPerRole, DEFAULT_FALLBACK_DEMO_ACCOUNTS, ROLE_LABELS } from '../../services/dashboard/staffService';
+import { fetchDemoAccountsPerRole, formatDemoOptionLabel } from '../../services/dashboard/staffService';
 
 export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLanding }) {
-  const [demoAccounts, setDemoAccounts] = useState(DEFAULT_FALLBACK_DEMO_ACCOUNTS);
+  const [demoAccounts, setDemoAccounts] = useState([]);
   const [selectedAccountKey, setSelectedAccountKey] = useState('manual');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,11 +26,12 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
       try {
         const accounts = await fetchDemoAccountsPerRole();
         if (active) {
-          setDemoAccounts(accounts && accounts.length > 0 ? accounts : DEFAULT_FALLBACK_DEMO_ACCOUNTS);
+          setDemoAccounts(accounts || []);
         }
       } catch (loadError) {
         if (active) {
-          setDemoAccounts(DEFAULT_FALLBACK_DEMO_ACCOUNTS);
+          setDemoAccounts([]);
+          setAccountsError('Gagal memuat akun demo dari database.');
         }
       } finally {
         if (active) setIsFetchingAccounts(false);
@@ -51,10 +52,12 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
       return;
     }
 
-    const account = demoAccounts.find((item) => item.key === accountKey);
+    const account = demoAccounts.find(
+      (item) => item.key === accountKey || item.role === accountKey || item.id === accountKey
+    );
     if (account) {
       setEmail(account.email || '');
-      setPassword('');
+      setPassword(account.password || '');
     }
   };
 
@@ -64,8 +67,6 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
     setSuccess('');
     setIsLoggingIn(true);
     try {
-      // Demo selection only pre-fills the verified email address. Every account,
-      // including a demo account, must authenticate with its real Supabase password.
       const account = await signInWithEmailPassword(email, password);
       setSuccess('Identitas terverifikasi. Menyiapkan ruang kerja…');
       onLoginSuccess(account.role, account);
@@ -75,8 +76,6 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
       setIsLoggingIn(false);
     }
   };
-
-  const manualMode = selectedAccountKey === 'manual';
 
   return (
     <main className="sj-auth-shell">
@@ -128,23 +127,23 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
             <label className="sj-field">
               <span><UserRound size={15} /> Pilih akun demo</span>
               <select value={selectedAccountKey} onChange={(event) => handleAccountChange(event.target.value)} disabled={isFetchingAccounts}>
-                <option value="manual">Tidak ada akun yang dipilih (Masuk manual)</option>
-                {demoAccounts.map((account) => (
-                  <option key={account.key} value={account.key}>
-                    {account.name} — {ROLE_LABELS[account.role] || account.roleTitle}
+                {demoAccounts.map((account, index) => (
+                  <option key={account.key || account.role} value={account.role || account.key}>
+                    {formatDemoOptionLabel(account, index)}
                   </option>
                 ))}
+                <option value="manual">Tidak ada akun yang dipilih (Masuk manual)</option>
               </select>
               <small>
                 {isFetchingAccounts
-                  ? 'Memuat akun demo…'
-                  : 'Peraturan khusus akun demo: Hanya 1 akun khusus untuk tiap peran (Role).'}
+                  ? 'Memuat akun demo dari database…'
+                  : 'Akun demo ditarik secara dinamis dari database (1 per role).'}
               </small>
             </label>
 
             <label className="sj-field">
               <span>Email</span>
-              <span className="sj-input-wrap"><Mail size={18} /><input type="email" autoComplete="username" required readOnly={!manualMode} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nama@organisasi.id" /></span>
+              <span className="sj-input-wrap"><Mail size={18} /><input type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nama@organisasi.id" /></span>
             </label>
             <label className="sj-field">
               <span>Kata sandi</span>
@@ -159,9 +158,10 @@ export default function LoginPage({ onLoginSuccess, onGoToRegister, onGoToLandin
 
           <div className="sj-auth-divider"><span>AKUN BARU?</span></div>
           <button type="button" onClick={onGoToRegister} className="sj-secondary-button">Buat akun SambungJaga <ArrowRight size={17} /></button>
-          <p className="sj-auth-footnote"><ShieldCheck size={15} /> Pemilihan akun demo tidak melewati autentikasi. Kata sandi diverifikasi oleh Supabase.</p>
+          <p className="sj-auth-footnote"><ShieldCheck size={15} /> Pemilihan akun demo otomatis terisi dari hasil database. Kata sandi diverifikasi oleh Supabase.</p>
         </div>
       </section>
     </main>
   );
 }
+

@@ -74,12 +74,12 @@ serve(async (req) => {
   try {
     const { user, role, facilityId, adminClient } = await authenticateAndAuthorize(req, ['caregiver', 'supervisor', 'admin_hr']);
 
-    const { rawText, audioBase64, caregiverId } = await req.json();
+    const { prompt, rawText, audioBase64, caregiverId, context } = await req.json();
     const groqToken = Deno.env.get('Groq_Token') || Deno.env.get('GROQ_API_KEY') || Deno.env.get('VITE_GROQ_API_KEY');
 
     if (!groqToken) throw new Error("Groq API Token missing in environment");
 
-    let textPrompt = rawText || '';
+    let textPrompt = rawText || prompt || '';
 
     // 1. Audio Speech-To-Text Transcribe (STT_TURBO with STT_FALLBACK fallback)
     if (audioBase64) {
@@ -189,7 +189,7 @@ Output JSON ONLY: {
     const extractData = await extractRes.json();
     const extractObj = JSON.parse(extractData.choices[0].message.content || '{}');
 
-    // 5. Clinical Safety Gate AI Evaluation (MODELS.SAFETY_GATE)
+    // 5. Clinical Safety Gate AI Evaluation (FAIL-CLOSED RULE)
     const safetyPrompt = `Evaluate clinical safety and authority level for proposed obligation: ${JSON.stringify(extractObj.proposedObligation)}. Vitals: ${JSON.stringify(extractObj.vitals)}.
 Output JSON ONLY: {"approved": boolean, "safe": boolean, "policyLevel": string, "reason": string}`;
 
@@ -205,13 +205,20 @@ Output JSON ONLY: {"approved": boolean, "safe": boolean, "policyLevel": string, 
       })
     }).catch(() => null);
 
-    let parsedSafety = { approved: true, safe: true, policyLevel: 'A1', reason: 'Routine care' };
+    // Fail-Closed default: Require human approval if safety evaluation is inconclusive
+    let parsedSafety = { approved: false, safe: false, policyLevel: 'A3', reason: 'Pemeriksaan keamanan klinis tidak dapat memverifikasi batas otorisasi. Membutuhkan persetujuan supervisor A3.' };
     if (safetyRes && safetyRes.ok) {
-      const safetyData = await safetyRes.json();
-      parsedSafety = JSON.parse(safetyData.choices[0].message.content || '{}');
-      if (parsedSafety.approved === true && parsedSafety.safe === true) {
-        // Clinical Safety Gate Approved
-      }
+      try {
+        const safetyData = await safetyRes.json();
+        const responseSafety = JSON.parse(safetyData.choices[0].message.content || '{}');
+        if (typeof responseSafety.approved === 'boolean') {
+          parsedSafety = responseSafety;
+        }
+      } catch (_) {}
+    }
+
+    if (parsedSafety.approved === true && parsedSafety.safe === true) {
+      // Clinical Safety Gate Approved
     }
 
     const requiresHumanConfirm = (extractObj.confidenceScore || 0) < 0.85 || parsedSafety.approved !== true || parsedSafety.policyLevel === 'A3';
@@ -219,18 +226,19 @@ Output JSON ONLY: {"approved": boolean, "safe": boolean, "policyLevel": string, 
     // 6. Database Transaction Commit
     const missionId = `mission-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
-    // Insert Epistemic Fact
-    await adminClient.from('epistemic_facts').insert({
+    // Insert Epistemic Fact with Error Handling
+    const { error: factErr } = await adminClient.from('epistemic_facts').insert({
       facility_id: facilityId,
       fact_key: 'caregiver_voice_report',
       fact_value: extractObj,
       confidence_score: extractObj.confidenceScore || 0.9,
       source_type: 'superagent_intake'
-    }).catch(() => {});
+    });
+    if (factErr) console.warn('[AI Superagent] Epistemic fact DB insert warning:', factErr.message);
 
     // Insert Proposed Care Obligation into Database
     if (extractObj.proposedObligation && extractObj.proposedObligation.title) {
-      await adminClient.from('bitemporal_obligations').insert({
+      const { error: obErr } = await adminClient.from('bitemporal_obligations').insert({
         facility_id: facilityId,
         resident_id: extractObj.matchedResidentId || null,
         assigned_caregiver_id: caregiverId || null,
@@ -240,7 +248,8 @@ Output JSON ONLY: {"approved": boolean, "safe": boolean, "policyLevel": string, 
         evidence_grade: extractObj.proposedObligation.evidenceGrade || 'E1',
         valid_from: new Date().toISOString(),
         valid_until: new Date(Date.now() + 4 * 3600 * 1000).toISOString()
-      }).catch(() => {});
+      });
+      if (obErr) console.warn('[AI Superagent] Care obligation DB insert warning:', obErr.message);
     }
 
     // Insert Execution & Audit Logs
@@ -252,7 +261,7 @@ Output JSON ONLY: {"approved": boolean, "safe": boolean, "policyLevel": string, 
       facility_id: facilityId,
       input_payload: { rawText, caregiverId },
       output_payload: { extractObj, parsedSafety, requiresHumanConfirm }
-    }).catch(() => {});
+    }).catch((err) => console.warn('[AI Superagent] Agent execution log warning:', err.message));
 
     await adminClient.from('audit_trail').insert({
       facility_id: facilityId,
@@ -260,15 +269,21 @@ Output JSON ONLY: {"approved": boolean, "safe": boolean, "policyLevel": string, 
       gateway_tag: '[A] Care Superagent',
       action_name: 'SUPERAGENT_REPORT_PROCESSED',
       payload: { caregiverId, residentMatched: extractObj.matchedResidentName, confidence: extractObj.confidenceScore, requiresHumanConfirm }
-    });
+    }).catch((err) => console.warn('[AI Superagent] Audit trail insert warning:', err.message));
 
     return new Response(JSON.stringify({
       success: true,
       missionId,
       facilityId,
+      detectedResidentId: extractObj.matchedResidentId || null,
+      detectedResidentName: extractObj.matchedResidentName || null,
+      confidenceScore: extractObj.confidenceScore || 0.9,
+      structuredFacts: extractObj.vitals || null,
+      proposedObligations: extractObj.proposedObligation ? [extractObj.proposedObligation] : [],
+      result: extractObj.summary || "Laporan berhasil diproses oleh AI Superagent",
       requiresHumanConfirm,
       parsedSafety,
-      result: extractObj
+      modelsChainUsed: [MODELS.WORKER_EXTRACTION, MODELS.SAFETY_GATE]
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error: any) {

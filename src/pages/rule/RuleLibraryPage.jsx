@@ -10,12 +10,9 @@ import {
   ShieldCheck,
   Edit3,
   Archive,
-  RefreshCw,
   Play,
   FileText,
-  AlertTriangle,
   X,
-  History,
   Layers,
   Lock
 } from 'lucide-react';

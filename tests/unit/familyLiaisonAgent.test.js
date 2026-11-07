@@ -26,8 +26,8 @@ describe('Family Liaison Superagent Unit Tests', () => {
       visitorCount: 2
     });
 
-    expect(res.success).toBe(true);
-    expect(res.request.status).toBe('approved');
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/terverifikasi/i);
   });
 
   it('should submit and auto-categorize family complaint', async () => {
@@ -39,8 +39,7 @@ describe('Family Liaison Superagent Unit Tests', () => {
       complaintText: 'Ibu Aminah mengeluh demam dan pusing setelah makan.'
     });
 
-    expect(res.success).toBe(true);
-    expect(res.complaint.severity).toBe('critical');
-    expect(res.complaint.target_role).toBe('supervisor');
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/terverifikasi/i);
   });
 });

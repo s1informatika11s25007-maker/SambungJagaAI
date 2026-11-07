@@ -2,11 +2,11 @@
  * SambungJaga AI — Admin Agent Health Monitor
  *
  * Displays Central Care Orchestrator Status across 8 Unified Agent Groups
- * and 48 total operational agent instances.
+ * Registry view only; distributed worker health requires server heartbeat telemetry.
  */
 
 import React from 'react';
-import { Cpu, CheckCircle2, ShieldAlert, AlertTriangle, Activity } from 'lucide-react';
+import { Cpu, CheckCircle2, Activity } from 'lucide-react';
 import Badge from '../../components/common/Badge';
 import { getAgentMeshHealthSnapshot } from '../../services/ai/agentMeshOrchestrator';
 
@@ -32,7 +32,7 @@ export default function AdminAgentHealthPage() {
           <span>Central Care Orchestrator — Agent Health Monitor</span>
         </h2>
         <p className="text-xs text-slate-500">
-          Status kesehatan 8 Kelompok Agen Utama & 48 Sub-agen operasional dalam Central Care Orchestrator Mesh.
+          Registry agent pada proses aplikasi ini. Status worker/server lintas proses belum diverifikasi melalui heartbeat dan tidak diklaim ACTIVE di halaman ini.
         </p>
       </div>
 
@@ -42,12 +42,12 @@ export default function AdminAgentHealthPage() {
           <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Status Orchestrator</span>
           <p className="text-lg font-black text-emerald-600 flex items-center gap-1.5">
             <CheckCircle2 className="w-5 h-5" />
-            <span>{snapshot.overallStatus}</span>
+            <span>REGISTRY ONLY</span>
           </p>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Agen Aktif / Siap</span>
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Sedang berjalan di proses ini</span>
           <p className="text-2xl font-black text-slate-900">{snapshot.activeCount} / {snapshot.totalAgents}</p>
         </div>
 
@@ -57,7 +57,7 @@ export default function AdminAgentHealthPage() {
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-1">
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Agen Gagal / Open CB</span>
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Circuit breaker terbuka</span>
           <p className="text-2xl font-black text-rose-600">{snapshot.failedCount}</p>
         </div>
       </div>
@@ -74,11 +74,11 @@ export default function AdminAgentHealthPage() {
             <div key={group.id} className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-extrabold text-slate-900">{group.name}</h4>
-                <Badge variant="success">ACTIVE</Badge>
+                <Badge variant="warning">BELUM DIVERIFIKASI</Badge>
               </div>
               <p className="text-xs text-slate-600">{group.desc}</p>
               <div className="text-[10px] font-mono text-slate-400 pt-1 border-t border-slate-200/60">
-                Domain: {group.domain} · Executor Status: IMPLEMENTED
+                Domain: {group.domain} · Runtime health: belum tersedia
               </div>
             </div>
           ))}
