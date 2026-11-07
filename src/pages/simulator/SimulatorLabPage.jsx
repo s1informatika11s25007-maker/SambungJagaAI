@@ -89,9 +89,9 @@ export default function SimulatorLabPage({ staff, obligations }) {
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900 flex items-center">
               <ShieldAlert className="w-4 h-4 mr-1.5 text-amber-600" />
-              P4 · Failure-Set Search Simulator
+              Simulator Pencarian Kombinasi Kegagalan P4
             </h3>
-            <Badge variant="kernel">P4 Kernel AI Agent</Badge>
+            <Badge variant="kernel">Agent AI Kernel P4</Badge>
           </div>
           <p className="text-xs text-slate-600">
             Mencari kombinasi kegagalan pengasuh terkecil yang berisiko menelantarkan kewajiban kritis.
@@ -101,7 +101,7 @@ export default function SimulatorLabPage({ staff, obligations }) {
             className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs py-2.5 rounded-xl font-bold transition flex items-center justify-center space-x-2 shadow-md shadow-amber-600/20"
           >
             <Play className="w-4 h-4" />
-            <span>Buka Failure-Set Simulator</span>
+            <span>Buka Simulator Kegagalan</span>
           </button>
         </div>
 

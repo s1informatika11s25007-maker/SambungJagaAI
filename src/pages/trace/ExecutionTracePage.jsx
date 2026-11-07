@@ -46,9 +46,9 @@ export default function ExecutionTracePage({ obligations, onOpenTraceModal }) {
         status: 'OK VERIFIED'
       },
       {
-        title: '6. P2 Evidence-Grade Verifier & Append-Only Audit Trail [A]',
-        desc: `Verifikasi bukti ${ob.required_evidence_grade} berhasil. Entry ditulis ke Hash-Chained Audit Trail dengan SHA-256 prev_hash.`,
-        tag: '[A] Audit Trail',
+        title: '6. Verifikator Bukti P2 & Jejak Audit SHA-256 [A]',
+        desc: `Verifikasi bukti ${ob.required_evidence_grade} berhasil. Catatan ditulis ke Rantai Hash Jejak Audit dengan SHA-256 prev_hash.`,
+        tag: '[A] Jejak Audit',
         status: 'OK VERIFIED'
       }
     ];
@@ -62,7 +62,7 @@ export default function ExecutionTracePage({ obligations, onOpenTraceModal }) {
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
             <GitPullRequest className="w-5 h-5 text-sky-600" />
-            <span>Explainable Execution Trace Viewer (P1 - P6 Auditability)</span>
+            <span>Pelacakan Transparan Keputusan AI (Auditabilitas P1 - P6)</span>
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
             Inspeksi transparan alur eksekusi AI: Input -&gt; Filter Prompt Injection -&gt; Facts (P3) -&gt; Rules Compiler -&gt; Obligation Graph (P1) -&gt; Authority Envelope Gate (P6) -&gt; DB Execution -&gt; Verifier (P2) -&gt; Audit Trail [A].

@@ -32,18 +32,18 @@ import { supabase } from './supabase/client/client';
 import { getAuthenticatedAccount, signOutUser } from './services/auth/authService';
 
 const PAGE_TITLES = {
-  caregiver_pwa: 'Care Dashboard',
-  supervisor_dashboard: 'Supervisor Center',
-  workforce: 'Workforce Continuity',
-  handover_contract: 'Continuity & Activity',
-  execution_trace: 'Jejak Keputusan AI',
-  family_portal: 'Family Care Portal',
-  simulator_lab: 'Simulator & Analisis',
-  rule_library: 'Aturan & Kebijakan',
-  audit_trail: 'Audit Trail',
-  admin_agent_health: 'Agent Health Monitor',
-  admin_queue: 'Queue Monitor',
-  admin_security: 'Security & Configuration'
+  caregiver_pwa: 'Dashboard Perawatan',
+  supervisor_dashboard: 'Pusat Supervisor',
+  workforce: 'Manajemen Tim & Shift',
+  handover_contract: 'Serah Terima & Aktivitas',
+  execution_trace: 'Pelacakan Keputusan AI',
+  family_portal: 'Portal Perawatan Keluarga',
+  simulator_lab: 'Simulator & Analisis Lab',
+  rule_library: 'Perpustakaan Aturan',
+  audit_trail: 'Jejak Audit Keamanan [A]',
+  admin_agent_health: 'Monitor Kesehatan Agent',
+  admin_queue: 'Monitor Antrean Otomasi',
+  admin_security: 'Keamanan & Konfigurasi'
 };
 
 /**

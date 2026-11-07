@@ -176,7 +176,7 @@ export default function FamilyPortalPage({ currentUser, residents = [], obligati
     <section className="space-y-6">
       <header className="sj-page-intro">
         <div>
-          <span className="sj-eyebrow">RUANG KELUARGA (FAMILY LIAISON SUPERAGENT P1)</span>
+          <span className="sj-eyebrow">RUANG KELUARGA (SUPERAGENT KOMUNIKASI KELUARGA P1)</span>
           <h1>Portal Komunikasi Keluarga 2-Arah</h1>
           <p>Portal interaktif: lihat perkembangan perawatan, ajukan kunjungan otomatis, dan sampaikan pengaduan terkontrol.</p>
         </div>

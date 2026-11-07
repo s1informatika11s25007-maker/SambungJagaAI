@@ -15,7 +15,7 @@ export default function AdminSecurityConfigPage() {
       <div>
         <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-sky-600" />
-          <span>Security, Tenant Isolation & Policy Framework</span>
+          <span>Keamanan, Isolasi Tenant & Kerangka Kerja Kebijakan</span>
         </h2>
         <p className="text-xs text-slate-500">
           Infrastruktur keamanan, RLS Multi-Tenant Isolation, Kebijakan Private Storage Bucket, dan Kerangka Kerja Wewenang A0-A3.

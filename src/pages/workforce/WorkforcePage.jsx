@@ -37,7 +37,7 @@ export default function WorkforcePage({ staff = [], residents = [], obligations 
         <div>
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-5 h-5 text-sky-600" />
-            <span>Workforce Continuity Management</span>
+            <span>Manajemen Kesinambungan Tenaga Kerja & Shift</span>
           </h2>
           <p className="text-xs text-slate-500">
             Ketersediaan caregiver, pemetaan kompetensi, rasio staffing berbasis beban kerja lansia, dan jadwal shift operasional.

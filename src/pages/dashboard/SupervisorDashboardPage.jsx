@@ -217,7 +217,7 @@ export default function SupervisorDashboardPage({
             <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
               <div className="flex items-center space-x-2">
                 <AlertCircle className="w-5 h-5 text-amber-400" />
-                <h2 className="text-sm font-bold tracking-tight">Supervisor Exception Management</h2>
+                <h2 className="text-sm font-bold tracking-tight">Manajemen Pengecualian Supervisor</h2>
               </div>
               <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
                 Hanya Menampilkan 7 Poin Pengecualian Kritis (Action-Oriented)

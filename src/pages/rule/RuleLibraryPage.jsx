@@ -213,7 +213,7 @@ export default function RuleLibraryPage({
               <BookOpen className="w-5 h-5" />
             </div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Rule & Policy Library <span className="text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-full ml-2">P1 Temporal Kernel</span>
+              Perpustakaan Aturan & Kebijakan <span className="text-xs font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-full ml-2">Kernel Temporal P1</span>
             </h2>
           </div>
           <p className="text-xs text-slate-600">

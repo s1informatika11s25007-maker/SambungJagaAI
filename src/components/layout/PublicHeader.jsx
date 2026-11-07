@@ -7,7 +7,7 @@ export default function PublicHeader({ onGoToLogin, onGoToRegister, onGoToLandin
       <div className="sj-public-header-inner">
         <button type="button" onClick={onGoToLanding} className="sj-brand-lockup" aria-label="SambungJaga beranda">
           <span className="sj-brand-mark"><Heart size={20} fill="currentColor" /></span>
-          <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
+          <span><strong>Sambung<span>Jaga</span></strong><small>Platform Kesinambungan Perawatan</small></span>
         </button>
         <nav className="sj-public-nav" aria-label="Navigasi halaman">
           <a href="#cara-kerja">Cara kerja</a>

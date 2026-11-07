@@ -62,7 +62,7 @@ export default function RegisterPage({ onRegisterSuccess, onGoToLogin, onGoToLan
           <div className="sj-auth-visual-top">
             <button type="button" onClick={onGoToLanding} className="sj-brand-lockup sj-brand-light">
               <span className="sj-brand-mark"><Heart size={21} fill="currentColor" /></span>
-              <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
+              <span><strong>Sambung<span>Jaga</span></strong><small>Platform Kesinambungan Perawatan</small></span>
             </button>
             <button type="button" onClick={onGoToLanding} className="sj-back-link"><ArrowLeft size={16} /> Beranda</button>
           </div>
@@ -87,7 +87,7 @@ export default function RegisterPage({ onRegisterSuccess, onGoToLogin, onGoToLan
         <div className="sj-auth-panel-inner sj-register-inner animate-fade-up">
           <div className="sj-auth-mobile-brand sj-brand-lockup">
             <span className="sj-brand-mark"><Heart size={20} fill="currentColor" /></span>
-            <span><strong>Sambung<span>Jaga</span></strong><small>Care continuity platform</small></span>
+            <span><strong>Sambung<span>Jaga</span></strong><small>Platform Kesinambungan Perawatan</small></span>
           </div>
           <div className="sj-auth-heading">
             <span className="sj-eyebrow">PENDAFTARAN AKUN</span>

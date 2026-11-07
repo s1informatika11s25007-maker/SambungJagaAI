@@ -7,13 +7,13 @@ import {
 import ArchitectureModal from '../../components/common/ArchitectureModal';
 
 const careJourneySteps = [
-  { step: '01', title: '1. Caregiver Reporting', text: 'Laporan suara atau teks masuk langsung dari perawat di lapangan.', icon: MessageSquareText },
-  { step: '02', title: '2. AI Understanding', text: 'AI mengidentifikasi penghuni, mengekstrak fakta, dan memeriksa kelengkapan.', icon: ScanEye },
-  { step: '03', title: '3. Care Obligation', text: 'Kebutuhan yang tervalidasi menjadi tugas kewajiban berdasarkan aturan panti.', icon: ClipboardList },
-  { step: '04', title: '4. Workforce Assignment', text: 'Sistem mencocokkan caregiver sesuai kompetensi, shift, dan ketersediaan.', icon: UserCheck },
-  { step: '05', title: '5. Care Evidence', text: 'Pelaksanaan dicatat dan foto bukti diunggah ke penyimpanan privat.', icon: Upload },
-  { step: '06', title: '6. Supervisor Review', text: 'Bukti & aksi klinis yang membutuhkan otorisasi diperiksa manusia berwenang.', icon: ShieldCheck },
-  { step: '07', title: '7. Continuity & Family', text: 'Handover 2 sisi, audit trail, dan informasi keluarga yang diizinkan PDP diperbarui.', icon: Heart }
+  { step: '01', title: '1. Laporan Pengasuh', text: 'Laporan suara atau teks masuk langsung dari perawat di lapangan.', icon: MessageSquareText },
+  { step: '02', title: '2. Pemahaman AI', text: 'AI mengidentifikasi penghuni, mengekstrak fakta, dan memeriksa kelengkapan.', icon: ScanEye },
+  { step: '03', title: '3. Kewajiban Perawatan', text: 'Kebutuhan yang tervalidasi menjadi tugas kewajiban berdasarkan aturan panti.', icon: ClipboardList },
+  { step: '04', title: '4. Penugasan Tim Shift', text: 'Sistem mencocokkan caregiver sesuai kompetensi, shift, dan ketersediaan.', icon: UserCheck },
+  { step: '05', title: '5. Bukti Perawatan', text: 'Pelaksanaan dicatat dan foto bukti diunggah ke penyimpanan privat.', icon: Upload },
+  { step: '06', title: '6. Tinjauan Supervisor', text: 'Bukti & aksi klinis yang membutuhkan otorisasi diperiksa manusia berwenang.', icon: ShieldCheck },
+  { step: '07', title: '7. Kesinambungan & Keluarga', text: 'Handover 2 sisi, audit trail, dan informasi keluarga yang diizinkan PDP diperbarui.', icon: Heart }
 ];
 
 const capabilities = [
@@ -24,11 +24,11 @@ const capabilities = [
 ];
 
 const roleCards = [
-  { icon: Heart, title: 'Caregiver Workspace', text: 'Lapor kondisi, lihat tugas, kirim bukti, dan lanjutkan serah terima shift.' },
-  { icon: ShieldCheck, title: 'Supervisor Center', text: 'Tinjau pengecualian, periksa bukti, putuskan approval, dan pantau eskalasi.' },
-  { icon: LockKeyhole, title: 'Family Care Portal', text: 'Lihat ringkasan yang diizinkan, kelola kunjungan, dan lacak pengaduan.' },
-  { icon: Users, title: 'HR Workforce', text: 'Kelola pegawai, kompetensi, shift, kehadiran, dan kebutuhan pengganti.' },
-  { icon: Shield, title: 'Platform Administration', text: 'Pantau layanan, antrean, keamanan, dan audit teknis sesuai kewenangan.' }
+  { icon: Heart, title: 'Ruang Kerja Pengasuh', text: 'Lapor kondisi, lihat tugas, kirim bukti, dan lanjutkan serah terima shift.' },
+  { icon: ShieldCheck, title: 'Pusat Supervisor', text: 'Tinjau pengecualian, periksa bukti, putuskan approval, dan pantau eskalasi.' },
+  { icon: LockKeyhole, title: 'Portal Perawatan Keluarga', text: 'Lihat ringkasan yang diizinkan, kelola kunjungan, dan lacak pengaduan.' },
+  { icon: Users, title: 'Manajemen Kehadiran & Shift', text: 'Kelola pegawai, kompetensi, shift, kehadiran, dan kebutuhan pengganti.' },
+  { icon: Shield, title: 'Administrasi Platform', text: 'Pantau layanan, antrean, keamanan, dan audit teknis sesuai kewenangan.' }
 ];
 
 export default function LandingPage({ onGoToLogin, onGoToRegister }) {
@@ -40,7 +40,7 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
         <div className="sj-hero-glow sj-hero-glow-a" />
         <div className="sj-hero-glow sj-hero-glow-b" />
         <div className="sj-hero-copy animate-fade-up">
-          <span className="sj-eyebrow sj-eyebrow-light"><span className="sj-live-dot" /> CARE CONTINUITY INTELLIGENCE</span>
+          <span className="sj-eyebrow sj-eyebrow-light"><span className="sj-live-dot" /> INTELIJEN KESINAMBUNGAN PERAWATAN</span>
           <h1>Jangan biarkan informasi perawatan lansia <em>terputus antar-shift.</em></h1>
           <p className="sj-hero-description">SambungJaga menghubungkan laporan caregiver, tugas perawatan, bukti pelaksanaan, pemeriksaan supervisor, dan komunikasi keluarga dalam satu perjalanan perawatan yang dapat ditelusuri.</p>
 
@@ -63,7 +63,7 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
           </div>
           <div className="sj-floating-card sj-floating-card-top">
             <span className="sj-floating-icon sj-floating-icon-blue"><ScanEye size={18} /></span>
-            <span><strong>Care Continuity</strong><small>One Connected Care Journey</small></span>
+            <span><strong>Kesinambungan Perawatan</strong><small>Satu Alur Perawatan Terpadu</small></span>
             <span className="sj-mini-check"><CheckCircle2 size={16} /></span>
           </div>
           <div className="sj-floating-card sj-floating-card-bottom">
@@ -88,7 +88,7 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
       <section className="sj-section" id="care-journey">
         <div className="sj-section-heading">
           <span className="sj-eyebrow">INOVASI UNGGULAN KONSISTENSI PERAWATAN</span>
-          <h2>One Connected Care Journey</h2>
+          <h2>Satu Alur Perawatan Terpadu</h2>
           <p>Alur 7 langkah terintegrasi yang menghubungkan seluruh kekuatan SambungJaga dari laporan pertama hingga pembaruan keluarga.</p>
         </div>
 
