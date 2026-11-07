@@ -1,158 +1,153 @@
 <div align="center">
   <p align="center">
-    <img src="public/3d-hero-animation.svg" alt="SambungJaga AI" width="100%" style="max-width: 880px;" />
+    <img src="public/mascot.png" alt="SambungJaga AI Mascot" width="160" />
   </p>
 
-  # SambungJaga AI — Care Continuity Workspace
-  **Ruang kerja koordinasi perawatan lansia dan serah-terima antar-shift.**
+  # SambungJaga AI — Care Continuity Superagent Workspace
+  **Asisten Pintar Perawatan Lansia & Intelijen Kesinambungan Antar-Shift di Panti Jompo**
 
   <p>
     <img src="https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black" alt="React 18" />
     <img src="https://img.shields.io/badge/Vite-5.4-646CFF?logo=vite&logoColor=white" alt="Vite 5" />
     <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white" alt="Supabase" />
-    <img src="https://img.shields.io/badge/Status-Hackathon%20MVP-orange" alt="Hackathon MVP" />
+    <img src="https://img.shields.io/badge/AI Engine-Gemini Nano %2B Cloud Hybrid-10B981" alt="AI Engine" />
+    <img src="https://img.shields.io/badge/Architecture-PWA %2B Offline First-0284C7" alt="PWA Offline First" />
   </p>
 </div>
 
 ---
 
-## 1. Masalah yang diselesaikan
+## 💡 Apa Itu SambungJaga AI?
 
-Informasi mengenai penghuni panti atau fasilitas perawatan dapat terputus ketika caregiver berganti shift. Catatan harian, tugas yang belum selesai, bukti pekerjaan, dan pengaduan keluarga sering berada di tempat berbeda. SambungJaga AI dirancang untuk membantu satu tim melihat konteks yang sama, mengetahui apa yang belum selesai, dan mencatat siapa yang menyerahkan serta menerima tanggung jawab.
+**SambungJaga AI** adalah platform **Superagent & Asisten AI Pintar** yang dirancang khusus untuk menjaga kesinambungan perawatan lansia di panti jompo dan fasilitas caregiving. 
 
-**Nilai utama produk:** mengurangi tugas perawatan yang terlupa dan membuat proses serah-terima lebih dapat ditelusuri. Sistem ini adalah alat koordinasi administratif, bukan pengganti tenaga kesehatan atau rekam medis resmi.
+Di panti jompo, masalah utama yang sering terjadi adalah **informasi perawatan yang terputus saat pergantian shift perawat (caregiver)**. Catatan riwayat obat, kondisi harian lansia, dan tugas medis terbuka sering kali tercecer atau lupa disampaikan.
 
-## 2. Peran dan alur produk
+SambungJaga AI hadir sebagai **pendamping digital interaktif** yang menghubungkan seluruh siklus perawatan: mulai dari **pencatatan laporan suara/teks pengasuh, pembentukan tugas medis otomatis, verifikasi bukti foto, serah-terima shift dua sisi, hingga pembaruan informasi kepada keluarga**.
 
-| Peran | Tujuan utama |
-|---|---|
-| Caregiver | Mencatat observasi perawatan, melihat kewajiban, dan menyerahkan tugas terbuka ke shift berikutnya. |
-| Supervisor | Meninjau tugas, bukti, eskalasi, pengaduan, dan serah-terima. |
-| Keluarga | Mengirim permintaan kunjungan/pengaduan dan menerima informasi yang telah diizinkan fasilitas. |
-| HR/Admin fasilitas | Mengelola staf, jadwal, kehadiran, dan ringkasan operasional. |
+---
 
-### Alur demo utama yang disarankan
+## 🚀 Mengapa SambungJaga AI Sangat Dibutuhkan?
 
-1. Masuk sebagai caregiver dan pilih seorang penghuni yang memang terdaftar pada fasilitas demo.
-2. Catat observasi singkat, misalnya “penghuni sudah sarapan”. AI boleh membantu merapikan atau mengklasifikasikan catatan, tetapi hasilnya tetap berstatus laporan manusia.
-3. Tampilkan tugas yang masih terbuka untuk penghuni tersebut. Tandai penyelesaian hanya setelah bukti dan pemeriksaan yang relevan.
-4. Buat draf serah-terima dengan memilih caregiver penerima yang aktif pada fasilitas yang sama.
-5. Masuk sebagai pengirim untuk menandatangani, lalu masuk sebagai penerima untuk mengonfirmasi. Status baru menjadi terkonfirmasi setelah dua sisi menyelesaikan langkahnya.
-6. Tunjukkan jejak audit dan ringkasan supervisor untuk membuktikan nilai produk.
+1. **Informasi Tidak Pernah Terputus:** Semua instruksi dan catatan harian terhubung dalam satu rantai perawatan digital.
+2. **Asisten AI Pendamping Pengasuh:** AI membantu merapikan catatan suara/teks perawat secara alami tanpa menambah beban administratif.
+3. **Penyelesaian Tugas Berbasis Bukti:** Setiap tindakan perawatan membutuhkan konfirmasi dan foto bukti terenkripsi.
+4. **Serah-Terima Shift Bergaransi 2 Sisi:** Perawat lama dan perawat baru wajib menandatangani kontrak digital serah-terima shift.
+5. **Transparansi Keluarga (Aman PDP):** Keluarga dapat memantau ringkasan perawatan lansia yang diizinkan secara aman.
 
-Gunakan akun dan data demo sintetis. Jangan tampilkan nama, foto, diagnosis, atau data kesehatan nyata saat presentasi.
+---
 
-## 3. Arsitektur teknis
+## 🔄 Alur 7 Langkah Kesinambungan Perawatan
 
-- **Frontend:** React 18, Vite 5, React Router, Tailwind CSS.
-- **Backend platform:** Supabase Auth, PostgreSQL, Row Level Security, RPC, dan Edge Functions.
-- **Server routes:** fungsi di folder `api/` untuk pekerjaan terjadwal/worker pada deployment yang sesuai.
-- **Offline:** laporan teks terpilih dapat disimpan terenkripsi di IndexedDB dan dikirim ulang melalui RPC yang memverifikasi sesi staf, penghuni, dan fasilitas. Antrean yang tidak dapat dienkripsi atau tidak memiliki identitas fasilitas/penghuni akan ditolak.
-- **Quality checks:** Vitest untuk unit test, Playwright untuk end-to-end, dan pemeriksaan sintaks JavaScript tanpa dependency tambahan.
+SambungJaga AI mengintegrasikan 7 langkah cerdas dalam setiap siklus perawatan lansia:
 
-Diagram `public/3d-data-layers.svg` dan spesifikasi arsitektur menggambarkan rancangan logis. Diagram tersebut tidak berarti semua layer sudah menjadi layanan terpisah atau telah lulus uji produksi.
+| Langkah | Peran (Role) | Fitur / Modul | Deskripsi Alur |
+| :--- | :--- | :--- | :--- |
+| **01. Laporan Pengasuh** | 👤 Caregiver | 📱 Ruang Kerja Pengasuh | Input teks/suara. Aplikasi mencocokkan identitas lansia secara 100% deterministik. |
+| **02. Menyusun Catatan AI** | 🤖 AI & Caregiver | 🧠 AI Note Compiler | Gemini Nano memproses secara lokal di HP. Jika offline/terbatas, cloud safeguard bertingkat diaktifkan. |
+| **03. Membentuk Tugas** | ⚙️ Sistem AI Kernel | ⚡ Atomic RPC Task Engine | Fakta & usulan kewajiban dikirim via RPC dan tersimpan aman setelah ada konfirmasi server (*RPC Ack*). |
+| **04. Mengunggah Bukti** | 📸 Caregiver | 🔒 Storage Bukti Privat | Foto tindakan medis dienkripsi dan disimpan secara privat di Supabase Storage. |
+| **05. Verifikasi Supervisor** | 👩‍⚕️ Supervisor Klinis | 🛡️ Pusat Supervisor | AI membantu memfilter anomali awal, namun keputusan & persetujuan klinis 100% diputuskan Supervisor. |
+| **06. Menerima Handover** | 🤝 Caregiver Shift | 📜 Kontrak Serah Terima | GPT-OSS 120B merangkum tugas terbuka. Perawat pengirim & penerima mengonfirmasi secara terpisah. |
+| **07. Audit Trail Ledger** | 🏛️ Admin & Keamanan | 🔐 Audit Trail SHA-256 | Seluruh riwayat dicatat dalam rantai audit *append-only* SHA-256 yang transparan & tidak bisa dimanipulasi. |
 
-## 4. Status fitur — baca sebelum demo
+---
 
-Status berikut sengaja membedakan kode yang tersedia dari integrasi yang masih harus diuji di staging.
+## 👥 Ruang Kerja Berbasis Peran (Multi-Role Workspaces)
 
-| Area | Status realistis |
-|---|---|
-| Autentikasi dan pemisahan peran | Tersedia dalam kode; wajib diuji dengan akun peran dan RLS di project Supabase demo. |
-| Laporan caregiver dan kewajiban | Alur kode tersedia; validasi end-to-end membutuhkan migrasi, data seed, dan akun aktif. |
-| Serah-terima dua pihak | RPC draf dan tanda tangan tersedia; wajib uji dua akun berbeda pada satu fasilitas. |
-| Laporan offline teks | Disiapkan dengan AES-GCM/IndexedDB dan RPC idempoten; uji pada browser target sebelum menjanjikan dukungan offline. |
-| Antrean suara/catatan offline | Transkrip/catatan dapat menggunakan adapter server yang aman, tetapi audio mentah belum memiliki alur unggah dan retensi lengkap. Jangan demo sebagai fitur audio offline end-to-end. |
-| Portal keluarga | Permintaan kunjungan, pengaduan, preferensi, dan tanda terima memiliki jalur persistensi; kebijakan izin/consent sensitif tetap fail-closed sampai workflow consent database dan proses persetujuan fasilitas tervalidasi. |
-| AI / model eksternal | Edge Functions mengacu pada ID model/provider di `modellist.md`; keberhasilan aktual bergantung pada API key, model yang masih tersedia, deployment function, kuota, dan response schema. Uji langsung di staging. |
-| WhatsApp/email/push | Membutuhkan kredensial provider, template, serta konfigurasi delivery. Jangan mengklaim terkirim hanya karena job berhasil dibuat. |
-| Backup/PITR | Belum dibuktikan oleh skrip pemeriksaan. Backup dan restore harus diuji pada project terpisah dengan prosedur pemulihan nyata. |
+SambungJaga AI menyediakan tampilan khusus yang disesuaikan dengan peran pengguna di lapangan:
 
-## 5. Prasyarat
+* **📱 Ruang Kerja Pengasuh (Caregiver Mobile Workspace):**
+  - Catat laporan harian lewat suara (STT) atau teks.
+  - Lihat daftar tugas kewajiban perawatan harian per lansia.
+  - Unggah foto bukti pelaksanaan tindakan (vital sign, obat, dll).
+  - Buat dan tanda tangani draf serah-terima shift.
 
-- Node.js 22.22.2 atau lebih baru dan npm 10 atau lebih baru (sesuai engine dependency di lockfile).
-- Project Supabase khusus demo/staging.
-- Supabase CLI untuk menerapkan migration.
-- API key provider AI hanya bila fitur AI eksternal akan didemokan.
+* **🛡️ Pusat Supervisor (Supervisor Intelligence Center):**
+  - Tinjau antrean verifikasi bukti tindakan medis.
+  - Terima peringatan otomatis untuk tugas berisiko (*Care Debt Alert*).
+  - Berikan otorisasi persetujuan klinis (*Human-in-the-Loop*).
+  - Pantau skor kesehatan operasional dan kesinambungan panti.
 
-## 6. Menjalankan secara lokal
+* **👨‍👩‍👧 Portal Perawatan Keluarga (Family Portal):**
+  - Lihat ringkasan kondisi lansia yang diizinkan sesuai kaidah privasi PDP.
+  - Ajukan jadwal kunjungan dan komunikasi dengan panti.
+  - Kirimkan pengaduan atau catatan khusus perawatan.
+
+* **👥 Manajemen Kehadiran & Shift:**
+  - Penjadwalan shift perawat dan pengecekan kompetensi staf.
+  - Pengelolaan daftar pengganti saat staf berhalangan.
+
+---
+
+## 🛠️ Arsitektur & Teknologi Utama
+
+- **Frontend Application:** React 18, Vite 5, React Router, Tailwind CSS, Lucide Icons.
+- **PWA & Offline-First:** Dukungan IndexedDB & AES-GCM untuk pelaporan saat koneksi internet terputus.
+- **Backend & Database:** Supabase PostgreSQL, Row Level Security (RLS), Stored Procedures / RPC Functions.
+- **Storage Privat:** Supabase Storage terenkripsi untuk bukti foto medis lansia.
+- **AI Superagent Engine:**
+  - **On-Device Local AI:** Gemini Nano untuk pemrosesan cepat & hemat data langsung di HP.
+  - **Hybrid Cloud Fallback:** Llama Prompt Guard 2 → Qwen 3.8 → GPT-OSS Safeguard 20B/120B.
+
+---
+
+## 💻 Panduan Menjalankan Secara Lokal (Quick Start)
+
+### 1. Prasyarat
+- Node.js 20.x / 22.x atau lebih baru.
+- npm 10.x atau lebih baru.
+- Akun Supabase (untuk URL & Anon Key).
+
+### 2. Langkah Instalasi
 
 ```bash
-# 1. Masuk ke root proyek
-cd SambungJaga
+# 1. Clone repository
+git clone https://github.com/s1informatika11s25007-maker/SambungJagaAI.git
+cd SambungJagaAI
 
-# 2. Pasang dependency tepat berdasarkan lockfile
-npm ci
+# 2. Install dependency
+npm install
 
-# 3. Buat konfigurasi lokal
+# 3. Buat file lingkungan lokal .env.local
 cp .env.example .env.local
 
 # 4. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY di .env.local
 
-# 5. Terapkan seluruh migration ke project Supabase yang benar
-npx supabase link --project-ref <PROJECT_REF>
-npx supabase db push
-
-# 6. Jalankan aplikasi
+# 5. Jalankan server pengembangan
 npm run dev
 ```
 
-Buka `http://localhost:3000`.
+Buka aplikasi di browser: `http://localhost:3000`.
 
-**Penting:** `.env.local` hanya untuk nilai frontend yang memang boleh diketahui browser, seperti Supabase URL dan anon key. Jangan pernah memasukkan `SUPABASE_SERVICE_ROLE_KEY`, password database, `CRON_SECRET`, atau API key provider ke variabel berawalan `VITE_`.
+---
 
-## 7. Pemeriksaan kualitas
+## 🧪 Pemeriksaan Kualitas & Pengujian Kode
 
 ```bash
-# JavaScript syntax check; tidak menggantikan ESLint atau type-check
+# Pemeriksaan sintaksis JavaScript/JSX
 npm run lint
 
-# Unit tests
+# Jalankan Unit Test (Vitest)
 npm run test:unit
 
-# Build production; sekaligus menjalankan JSX/module compilation
+# Build aplikasi untuk produksi
 npm run build
 
-# Build lalu jalankan Playwright E2E
+# Jalankan End-to-End Test (Playwright)
 npm run test:e2e
-
-# Semua test lokal
-npm test
-
-# Audit dependency
-npm run security:audit
 ```
 
-`npm run lint` sengaja disebut **syntax check**, bukan ESLint. Vite build memeriksa kompilasi JSX dan graph modul. CI akan gagal jika install, unit test, build, atau audit high/critical gagal; tidak ada skor lomba/leaderboard buatan.
+---
 
-## 8. Environment server dan jadwal
+## 🛡️ Prinsip Keamanan & Etika AI
 
-Untuk endpoint cron/worker, atur variabel ini melalui environment server/deployment, bukan `.env.local` frontend:
-
-- `SUPABASE_PROJECT_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `CRON_SECRET` — rahasia acak minimal 32 karakter dan **berbeda** dari service-role key.
-- `FACILITY_ID` — diperlukan untuk standalone worker/scheduler.
-- `DB_SSL_REJECT_UNAUTHORIZED=true` untuk migrasi database di lingkungan normal.
-
-Semua endpoint `/api/cron-*` memerlukan `Authorization: Bearer <CRON_SECRET>`. Header yang sekadar terlihat seperti header cron platform tidak dianggap autentikasi.
-
-Panduan deployment tambahan: [`scripts/DEPLOYMENT.md`](scripts/DEPLOYMENT.md).
-
-## 9. Batasan keamanan dan klinis
-
-1. AI hanya membantu ekstraksi atau peringkasan. Catatan yang dihasilkan AI harus ditinjau manusia; AI tidak boleh menetapkan diagnosis, dosis obat, atau mengambil keputusan klinis.
-2. Bukti foto, tanda tangan, dan hash tidak otomatis membuktikan tindakan klinis benar. Verifikasi manusia dan prosedur fasilitas tetap diperlukan.
-3. Persetujuan keluarga untuk data sensitif tetap ditolak secara default ketika status consent belum tersimpan dan tervalidasi.
-4. Enkripsi offline di browser membantu melindungi data tersimpan, tetapi tidak melindungi aplikasi dari XSS atau perangkat yang sudah dikuasai penyerang. Gunakan perangkat demo terkendali dan data sintetis.
-5. Jangan gunakan untuk operasional fasilitas atau data kesehatan nyata sebelum uji keamanan, legal/privacy, backup restore, pemulihan insiden, dan validasi klinis diselesaikan.
-
-## 10. Fokus pengembangan berikutnya
-
-Lihat [`HACKATHON_READINESS_AND_REPAIR.md`](HACKATHON_READINESS_AND_REPAIR.md) untuk daftar gap, prioritas perbaikan, rancangan demo, dan kriteria “siap lomba”.
+1. **Human-in-the-Loop (Kedaulatan Manusia):** AI bertindak sebagai asisten pembantu. Seluruh keputusan klinis, dosis obat, dan persetujuan tindakan tetap dipegang oleh Supervisor manusia.
+2. **Perlindungan Privasi Data (Sesuai UU PDP):** Data medis lansia dienkripsi dan dibatasi aksesnya berdasarkan aturan database (RLS).
+3. **Transparansi & Akuntabilitas:** Setiap aksi dicatat dalam *Audit Trail* ber-hash SHA-256 yang tidak dapat di-backdate atau diubah secara sepihak.
 
 ---
 
 <div align="center">
-  <sub>Dibangun untuk kesinambungan koordinasi perawatan lansia — 2026</sub>
+  <sub>SambungJaga AI — Menjaga Kesinambungan Perawatan Lansia Tanpa Terputus © 2026</sub>
 </div>

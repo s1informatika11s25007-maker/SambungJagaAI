@@ -2,26 +2,9 @@ import React, { useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, CheckCircle2, ClipboardList, Heart,
   LockKeyhole, MessageSquareText, ShieldCheck, Users,
-  Workflow, Activity, FileCheck2, TimerReset, ScanEye, Upload, UserCheck, Shield
+  Activity, FileCheck2, TimerReset, ScanEye, Shield
 } from 'lucide-react';
-import ArchitectureModal from '../../components/common/ArchitectureModal';
-
-const careJourneySteps = [
-  { step: '01', title: '1. Laporan Pengasuh', text: 'Laporan suara atau teks masuk langsung dari perawat di lapangan.', icon: MessageSquareText },
-  { step: '02', title: '2. Pemahaman AI', text: 'AI mengidentifikasi penghuni, mengekstrak fakta, dan memeriksa kelengkapan.', icon: ScanEye },
-  { step: '03', title: '3. Kewajiban Perawatan', text: 'Kebutuhan yang tervalidasi menjadi tugas kewajiban berdasarkan aturan panti.', icon: ClipboardList },
-  { step: '04', title: '4. Penugasan Tim Shift', text: 'Sistem mencocokkan caregiver sesuai kompetensi, shift, dan ketersediaan.', icon: UserCheck },
-  { step: '05', title: '5. Bukti Perawatan', text: 'Pelaksanaan dicatat dan foto bukti diunggah ke penyimpanan privat.', icon: Upload },
-  { step: '06', title: '6. Tinjauan Supervisor', text: 'Bukti & aksi klinis yang membutuhkan otorisasi diperiksa manusia berwenang.', icon: ShieldCheck },
-  { step: '07', title: '7. Kesinambungan & Keluarga', text: 'Handover 2 sisi, audit trail, dan informasi keluarga yang diizinkan PDP diperbarui.', icon: Heart }
-];
-
-const capabilities = [
-  { icon: MessageSquareText, number: '01', title: 'Tangkap laporan', text: 'Catatan teks, suara, dan bukti masuk melalui alur yang sama sehingga konteks tidak tercecer.' },
-  { icon: Workflow, number: '02', title: 'Ubah menjadi tugas', text: 'Superagent membantu menyusun tindak lanjut yang dapat ditinjau dan dikonfirmasi oleh petugas.' },
-  { icon: ShieldCheck, number: '03', title: 'Verifikasi penyelesaian', text: 'Bukti, status, dan pihak yang bertanggung jawab tersimpan untuk ditelusuri kembali.' },
-  { icon: Activity, number: '04', title: 'Pantau kesinambungan', text: 'Supervisor mendapat ringkasan prioritas, serah terima shift, dan aktivitas yang perlu diperhatikan.' }
-];
+import HowItWorks3DModal from '../../components/common/HowItWorks3D';
 
 const roleCards = [
   { icon: Heart, title: 'Ruang Kerja Pengasuh', text: 'Lapor kondisi, lihat tugas, kirim bukti, dan lanjutkan serah terima shift.' },
@@ -32,7 +15,7 @@ const roleCards = [
 ];
 
 export default function LandingPage({ onGoToLogin, onGoToRegister }) {
-  const [isArchitectureModalOpen, setIsArchitectureModalOpen] = useState(false);
+  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
 
   return (
     <div className="sj-landing">
@@ -46,7 +29,7 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
 
           <div className="sj-hero-actions">
             <button type="button" onClick={onGoToLogin} className="sj-hero-primary">Masuk ke platform <ArrowRight size={18} /></button>
-            <button type="button" onClick={() => setIsArchitectureModalOpen(true)} className="sj-hero-secondary">Jelajahi cara kerja <ArrowUpRight size={17} /></button>
+            <button type="button" onClick={() => setIsHowItWorksOpen(true)} className="sj-hero-secondary">Jelajahi cara kerja <ArrowUpRight size={17} /></button>
           </div>
           <div className="sj-hero-trust-row">
             <span><ShieldCheck size={15} /> Workspace sesuai peran</span>
@@ -73,7 +56,7 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
           </div>
 
           {/* Prominent Floating Brand Mascot Orb */}
-          <div className="sj-visual-brand-orb" title="Maskot SambungJaga AI">
+          <div className="sj-visual-brand-orb" title="Maskot SambungJaga AI" onClick={() => setIsHowItWorksOpen(true)} style={{ cursor: 'pointer' }}>
             <img
               src="/mascot.png"
               onError={(e) => { e.currentTarget.src = '/Friendly Futuristic Robot Mascot.png'; }}
@@ -81,33 +64,6 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
             />
           </div>
           <div className="sj-visual-caption"><span className="sj-caption-line" /> Satu alur. Informasi tetap tersambung.</div>
-        </div>
-      </section>
-
-      {/* Primary Featured Story: Care Continuity Intelligence — One Connected Care Journey */}
-      <section className="sj-section" id="care-journey">
-        <div className="sj-section-heading">
-          <span className="sj-eyebrow">INOVASI UNGGULAN KONSISTENSI PERAWATAN</span>
-          <h2>Satu Alur Perawatan Terpadu</h2>
-          <p>Alur 7 langkah terintegrasi yang menghubungkan seluruh kekuatan SambungJaga dari laporan pertama hingga pembaruan keluarga.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
-          {careJourneySteps.map((step) => {
-            const Icon = step.icon;
-            return (
-              <div key={step.step} className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm space-y-2 relative hover:shadow-md transition">
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center font-bold text-xs">
-                    <Icon size={16} />
-                  </div>
-                  <span className="text-xs font-mono font-bold text-slate-300">{step.step}</span>
-                </div>
-                <h3 className="text-xs font-bold text-slate-900">{step.title}</h3>
-                <p className="text-[11px] text-slate-600 leading-relaxed">{step.text}</p>
-              </div>
-            );
-          })}
         </div>
       </section>
 
@@ -137,7 +93,9 @@ export default function LandingPage({ onGoToLogin, onGoToRegister }) {
         <div><span className="sj-eyebrow sj-eyebrow-light">SAMBUNGJAGA CARE PLATFORM</span><h2>Jaga kesinambungan. Sederhanakan koordinasi.</h2><p>Masuk ke ruang kerja sesuai peran Anda.</p></div>
         <button type="button" onClick={onGoToLogin} className="sj-cta-button">Mulai sekarang <ArrowRight size={18} /></button>
       </section>
-      <ArchitectureModal isOpen={isArchitectureModalOpen} onClose={() => setIsArchitectureModalOpen(false)} />
+
+      {/* 3D How It Works Popup Modal Card */}
+      <HowItWorks3DModal isOpen={isHowItWorksOpen} onClose={() => setIsHowItWorksOpen(false)} />
     </div>
   );
 }

@@ -51,6 +51,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--s
 .animate-fade-in { animation: sj-fade-up .42s cubic-bezier(.2,.75,.25,1) both; }
 .animate-delay-2 { animation-delay: .16s; }
 .animate-float { animation: sj-float 5.8s ease-in-out infinite; }
+.animate-sj-float { animation: sj-float 5s ease-in-out infinite; }
+.animate-spin-slow { animation: spin 12s linear infinite; }
 .sj-live-dot { display: inline-block; width: 7px; height: 7px; margin-right: 3px; border-radius: 999px; background: #90d3b5; box-shadow: 0 0 0 5px rgba(144,211,181,.12); animation: sj-pulse-ring 2.6s ease-out infinite; }
 
 /* Public navigation */
