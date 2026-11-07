@@ -28,10 +28,10 @@ jobs:
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            "${SUPABASE_URL}/rest/v1/list_demo_login_accounts?select=profile_id&limit=1")
+            "${SUPABASE_URL}/rest/v1/rpc/list_demo_login_accounts")
           
           echo "Supabase Response Status Code: ${HTTP_STATUS}"
-          if [ "${HTTP_STATUS}" -eq 200 ] || [ "${HTTP_STATUS}" -eq 204 ]; then
+          if [ "${HTTP_STATUS}" -eq 200 ] || [ "${HTTP_STATUS}" -eq 201 ] || [ "${HTTP_STATUS}" -eq 204 ]; then
             echo "✅ Supabase project is active and responsive (HTTP ${HTTP_STATUS})."
           else
             echo "⚠️ Warning: Received response status HTTP ${HTTP_STATUS}."
