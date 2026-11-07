@@ -2,8 +2,8 @@ name: Keep Supabase Awake (24/7 Ping)
 
 on:
   schedule:
-    # Runs EVERY 1 HOUR to keep Supabase hot-warmed 24/7 for competition review
-    - cron: '0 * * * *'
+    # Runs every 6 hours (00:00, 06:00, 12:00, 18:00 UTC) to keep Supabase awake without wasting GitHub quota
+    - cron: '0 */6 * * *'
   workflow_dispatch:
   push:
     branches: [ main, master ]
