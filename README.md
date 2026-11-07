@@ -80,6 +80,85 @@ SambungJaga AI menyediakan tampilan khusus yang disesuaikan dengan peran penggun
 
 ---
 
+## 📂 Pohon Struktur Direktori Proyek (Project Structure)
+
+Berikut adalah struktur folder dan file proyek SambungJaga AI yang 100% akurat sesuai kondisi repository saat ini:
+
+```text
+SambungJagaAI/
+├── api/                             # Serverless / Cron Workers & Server API
+│   ├── cron-keep-alive.js           # Supabase DB Keep-Awake Ping Worker
+│   ├── cron-sla-watchdog.js         # SLA Care Debt Watchdog Worker
+│   └── cron-sync-health.js          # Platform Health Monitoring Worker
+├── public/                          # Static Assets, Aset Maskot & Animasi SVG
+│   ├── mascot.png                   # Logo Maskot Resmi SambungJaga AI
+│   ├── Orangtua.jpeg                # Foto Ilustrasi Caregiver & Lansia
+│   ├── elderly-care.svg             # Fallback SVG Caregiver
+│   ├── 3d-data-layers.svg           # Diagram Arsitektur Visual
+│   ├── manifest.json                # PWA Manifest Config
+│   └── sw.js                        # PWA Service Worker (Offline Support)
+├── src/                             # Source Code Utama Aplikasi React
+│   ├── components/                  # Modul Komponen Reusable UI
+│   │   ├── caregiver/               # Caregiver Widgets, Capture & Upload Modals
+│   │   ├── common/                  # Modul Umum (HowItWorks3D, Modal, Badge, Mic)
+│   │   ├── dashboard/               # Supervisor Command Center, Care Debt, Health
+│   │   ├── handover/                # Two-Sided Handover Contract Cards
+│   │   ├── layout/                  # Navbar, Sidebar, Header, PublicHeader, Footer
+│   │   ├── simulator/               # Failure Set Simulation Modals
+│   │   └── trace/                   # Execution Trace Modals
+│   ├── hooks/                       # Custom React Hooks
+│   │   └── core/                    # useSambungJaga.js (Global State & Sync)
+│   ├── pages/                       # Halaman Utama Aplikasi (Workspaces)
+│   │   ├── admin/                   # Admin Queue Monitor & Security Config Pages
+│   │   ├── audit/                   # Audit Trail Ledger Page
+│   │   ├── auth/                    # Landing Page, Login & Register Pages
+│   │   ├── caregiver/               # Caregiver Mobile Workspace Page
+│   │   ├── dashboard/               # Supervisor Intelligence Dashboard Page
+│   │   ├── family/                  # Family Portal Page (PDP Privacy Summary)
+│   │   ├── handover/                # Shift Handover Contract Page
+│   │   ├── rule/                    # Care Rule Library Page
+│   │   ├── simulator/               # Failure-Set Simulator Lab Page
+│   │   ├── trace/                   # Execution Trace Inspector Page
+│   │   └── workforce/               # Workforce & Shift Attendance Page
+│   ├── services/                    # Business Logic, AI Engine & Supabase Integrations
+│   │   ├── ai/                      # AI Superagent, Gemini Nano & Agent Mesh
+│   │   ├── audit/                   # SHA-256 Audit Trail Services
+│   │   ├── auth/                    # Auth, Consent & PDP Data Masker
+│   │   ├── automation/              # Event Bus, Autopilot & SLA Watchdog
+│   │   ├── caregiver/               # Evidence Verifier, STT Pipeline & WhatsApp Bot
+│   │   ├── dashboard/               # Audio Alerts & Staff Operational Services
+│   │   ├── data/                    # Data Retention Engine & Deduplication
+│   │   ├── handover/                # Handover Contracts & Authority Envelope
+│   │   ├── monitoring/              # Platform Ops & Clinical Quality Evaluator
+│   │   ├── notifications/           # Messaging & Push Providers
+│   │   ├── offline/                 # IndexedDb Encrypted Storage & Offline Sync
+│   │   ├── rule/                    # Obligation Engine & Rule Replay
+│   │   ├── security/                # Incident Response & Access Monitor
+│   │   ├── simulator/               # Failure Set Simulator Engine
+│   │   └── trace/                   # Epistemic Ledger & Conflict Resolution
+│   ├── supabase/                    # Supabase Client & Backend Auth Config
+│   │   └── client/                  # client.js & backendClient.js
+│   ├── types/                       # Definition & Architecture Specs
+│   │   └── core/                    # architecture.js
+│   ├── utils/                       # Helper Utility Functions
+│   │   └── common/                  # Cache Manager, Formatters, Validators
+│   ├── App.jsx                      # Main React Router & Workspace Switcher
+│   ├── main.jsx                     # Entry Point Application
+│   └── index.css                    # Tailwind CSS & 3D Custom Keyframes
+├── supabase/                        # Database Schema & Migrations
+│   ├── migrations/                  # SQL Migrations (Kernel, RPC, RLS, Audit)
+│   └── config.toml                  # Supabase CLI Local Configuration
+├── tests/                           # Unit & End-to-End Test Suite
+├── .env.example                     # Template Variabel Lingkungan Frontend
+├── .gitignore                       # Proteksi File Secrets (.env, node_modules)
+├── index.html                       # HTML Template App
+├── package.json                     # Dependency & NPM Script Executables
+├── vite.config.js                   # Vite Bundler Build Configuration
+└── README.md                        # Dokumentasi Resmi Proyek
+```
+
+---
+
 ## 🛠️ Arsitektur & Teknologi Utama
 
 - **Frontend Application:** React 18, Vite 5, React Router, Tailwind CSS, Lucide Icons.
